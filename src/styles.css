@@ -560,7 +560,7 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .role-card { align-self: start; }
 .run-demo-journey-button { display: inline-flex; align-items: center; justify-content: center; min-width: 210px; height: 44px; margin: -18px auto 34px; padding: 0 24px; color: #fff; background: var(--btn-primary-bg); border: 0; border-radius: 999px; box-shadow: var(--btn-primary-shadow); font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, filter .16s ease; }
 .run-demo-journey-button:hover { transform: translateY(-1px); filter: saturate(1.04); }
-.desktop-hint { margin: 0 auto 30px; max-width: 440px; color: #8a93a3; font-size: 13px; line-height: 1.5; text-align: center; }
+.desktop-hint { margin: 0 auto 30px; max-width: 480px; color: #8a93a3; font-size: 15px; font-weight: 500; line-height: 1.5; text-align: center; }
 
 /* Floating "Show Script" launcher + script table on the role selection page */
 .script-fab { position: fixed; right: 28px; bottom: 28px; z-index: 40; display: inline-flex; align-items: center; gap: 10px; height: 50px; padding: 0 22px 0 18px; color: #fff; background: linear-gradient(135deg, #0a1f63, #07184e); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; box-shadow: 0 14px 34px rgba(7,24,78,.34); font-size: 14px; font-weight: 600; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
