@@ -1429,15 +1429,21 @@ function ExhibitorAiOnboardingEntry({ onLogoClick, onStartScan }: { onLogoClick:
 }
 
 function ExhibitorGeneralInfoPage({ onLogoClick, onBack, onSubmit }: { onLogoClick: () => void; onBack: () => void; onSubmit: () => void }) {
-  // Open the public profile in a new tab WITHOUT switching to it. Simulating a
-  // Ctrl/Cmd+click on a real anchor is the most reliable cross-browser way to
-  // get a background tab (plain window.open foregrounds the new tab).
+  // Open the public profile in a NEW BACKGROUND tab without switching to it.
+  // Simulating a Ctrl/Cmd+click on a real, DOM-attached anchor is the most
+  // reliable way to get the browser's "open in background tab" behaviour (plain
+  // window.open foregrounds the new tab). The anchor must be in the document for
+  // the default navigation to fire; we keep focus on the current window after.
   const previewProfileInBackground = () => {
     const a = document.createElement('a')
     a.href = 'https://arobid.com/en/supplier/019e4e0b-ba2d-77dc-8689-2fed495ef9a4'
     a.target = '_blank'
     a.rel = 'noopener noreferrer'
-    a.dispatchEvent(new MouseEvent('click', { ctrlKey: true, metaKey: true, bubbles: true, cancelable: true }))
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.dispatchEvent(new MouseEvent('click', { ctrlKey: true, metaKey: true, shiftKey: false, bubbles: true, cancelable: true, view: window }))
+    document.body.removeChild(a)
+    window.focus()
   }
   return (
     <div className="general-info-page">
