@@ -560,6 +560,7 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .role-card { align-self: start; }
 .run-demo-journey-button { display: inline-flex; align-items: center; justify-content: center; min-width: 210px; height: 44px; margin: -18px auto 34px; padding: 0 24px; color: #fff; background: var(--btn-primary-bg); border: 0; border-radius: 999px; box-shadow: var(--btn-primary-shadow); font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, filter .16s ease; }
 .run-demo-journey-button:hover { transform: translateY(-1px); filter: saturate(1.04); }
+.desktop-hint { margin: 0 auto 30px; max-width: 440px; color: #8a93a3; font-size: 13px; line-height: 1.5; text-align: center; }
 
 /* Floating "Show Script" launcher + script table on the role selection page */
 .script-fab { position: fixed; right: 28px; bottom: 28px; z-index: 40; display: inline-flex; align-items: center; gap: 10px; height: 50px; padding: 0 22px 0 18px; color: #fff; background: linear-gradient(135deg, #0a1f63, #07184e); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; box-shadow: 0 14px 34px rgba(7,24,78,.34); font-size: 14px; font-weight: 600; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
@@ -576,19 +577,24 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .script-table-wrap { overflow: auto; }
 .script-table { width: 100%; min-width: 760px; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
 .script-table col.col-num { width: 48px; }
-.script-table col.col-actor { width: 132px; }
-.script-table col.col-action { width: 184px; }
-.script-table col.col-screen { width: 150px; }
+.script-table col.col-actor { width: 116px; }
+.script-table col.col-action { width: 146px; }
+.script-table col.col-screen { width: 126px; }
 .script-table col.col-script { width: auto; }
 .script-table col.col-dir { width: 92px; }
-.script-table th, .script-table td { padding: 12px 16px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+/* Override the global `td { white-space:nowrap; text-overflow:ellipsis }` so cells
+   wrap instead of being clipped, letting the narrow columns stay narrow. */
+.script-table th, .script-table td { padding: 11px 14px; text-align: left; vertical-align: top; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .script-table thead th { position: sticky; top: 0; z-index: 1; color: #475569; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
 .script-table tbody td { color: #1e293b; border-bottom: 1px solid #eef2f7; }
 .script-table tbody tr:hover { background: #fafbfd; }
 .script-num { color: #ed6203; font-weight: 700; font-variant-numeric: tabular-nums; }
 .script-actor { font-weight: 600; }
 .script-screen { color: #64748b; }
-.script-text { color: #475569; line-height: 1.5; }
+/* Script is the longest column: clamp to 3 lines, reveal the full text on row
+   hover (and a native tooltip carries it too, via the title attribute). */
+.script-text { color: #475569; line-height: 1.5; cursor: help; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.script-table tbody tr:hover .script-text { -webkit-line-clamp: unset; overflow: visible; }
 .script-dir { text-align: center; }
 .script-go { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 14px; color: #fff; background: var(--btn-primary-bg); border: 0; border-radius: 999px; box-shadow: var(--btn-primary-shadow); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: transform .14s ease, filter .14s ease; }
 .script-go:hover { transform: translateY(-1px); filter: saturate(1.06); }
@@ -626,7 +632,9 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
    fill in / upload). Applied for ~2s when a page is accessed, then removed.
    Lighter than the demo-journey guided glow: thin outline, soft shadow, no
    scale jump. */
-.page-glow { position: relative; z-index: 5; border-radius: 8px; animation: pageGlowPulse 1.7s ease-in-out infinite; }
+/* No border-radius here: the outline/shadow follow the element's own radius, so a
+   pill button gets a pill glow and a square field gets a square glow. */
+.page-glow { position: relative; z-index: 5; animation: pageGlowPulse 1.7s ease-in-out infinite; }
 @keyframes pageGlowPulse {
   0%, 100% { outline: 1.5px solid rgba(255,91,0,.55); outline-offset: 2px; box-shadow: 0 0 0 2px rgba(255,91,0,.14), 0 0 9px 2px rgba(255,122,26,.26); }
   50%      { outline: 1.5px solid rgba(255,174,74,.7); outline-offset: 4px; box-shadow: 0 0 0 4px rgba(255,91,0,.07), 0 0 15px 5px rgba(255,122,26,.3); }
