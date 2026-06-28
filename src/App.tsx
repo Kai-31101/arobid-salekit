@@ -1556,6 +1556,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const [runKey, setRunKey] = useState(0)
   const [typed, setTyped] = useState('')
   const [skipOpen, setSkipOpen] = useState(false)
+  const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
   const typingDone = typed.length >= step.script.length
@@ -1806,7 +1807,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   return (
     <div className="gtour-stage">
       <div className="gtour-topbar">
-        <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo-white.svg" alt="arobid.com" /><small>Salekit</small></button>
+        <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo.svg" alt="arobid.com" /><small>Salekit</small></button>
         <div className="gtour-progress">{steps.map((_, i) => <span key={i} className={i === index ? 'on' : i < index ? 'done' : ''} />)}</div>
         <div className="gtour-count">{index + 1} / {total}</div>
         <button className="gtour-exit" onClick={onExit}>Exit ✕</button>
@@ -1840,7 +1841,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
       {skipOpen && <div className="script-overlay" onClick={() => setSkipOpen(false)}>
         <div className="script-panel" onClick={(e) => e.stopPropagation()}>
           <header className="script-panel-head"><div><h2>Skip to a step</h2><p>{total} steps · jump to any point, then continue the journey from there.</p></div><button className="script-close" onClick={() => setSkipOpen(false)} aria-label="Close">✕</button></header>
-          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text" title={s.script}>{s.script}</td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
+          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{s.script}</span></td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
         </div>
       </div>}
     </div>
@@ -1850,6 +1851,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
 function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
   const [expandedRoles, setExpandedRoles] = useState<string[]>([])
   const [scriptOpen, setScriptOpen] = useState(false)
+  const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const [guideOpen, setGuideOpen] = useState(false)
   const toggleRole = (role: string) => setExpandedRoles((current) => current.includes(role) ? current.filter((item) => item !== role) : [...current, role])
   const roles = [
@@ -1923,7 +1925,7 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
     {scriptOpen && <div className="script-overlay" onClick={() => setScriptOpen(false)}>
       <div className="script-panel" onClick={(e) => e.stopPropagation()}>
         <header className="script-panel-head"><div><h2>Demo Journey Script</h2><p>{demoScriptSteps.length} steps · jump to any screen the script is talking about.</p></div><button className="script-close" onClick={() => setScriptOpen(false)} aria-label="Close script">✕</button></header>
-        <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Direction</th></tr></thead><tbody>{demoScriptSteps.map((s, i) => <tr key={i}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text" title={s.script}>{s.script}</td><td className="script-dir"><button className="script-go" onClick={() => onSelect(s.path)}>Go ▸</button></td></tr>)}</tbody></table></div>
+        <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Direction</th></tr></thead><tbody>{demoScriptSteps.map((s, i) => <tr key={i}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{s.script}</span></td><td className="script-dir"><button className="script-go" onClick={() => onSelect(s.path)}>Go ▸</button></td></tr>)}</tbody></table></div>
       </div>
     </div>}
     </div>
