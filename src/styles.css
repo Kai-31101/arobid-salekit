@@ -787,7 +787,7 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .gtour-stage { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background: #0b1220; font-family: "Inter Tight", Inter, system-ui, sans-serif; }
 
 /* Top bar: brand + progress + counter + exit */
-.gtour-topbar { display: flex; align-items: center; gap: 20px; flex: 0 0 60px; height: 60px; padding: 0 22px; background: linear-gradient(180deg, #0a1f63 0%, #07184e 100%); border-bottom: 1px solid rgba(255,255,255,.08); box-shadow: 0 2px 14px rgba(2,6,23,.35); z-index: 5; }
+.gtour-topbar { display: flex; align-items: center; gap: 20px; flex: 0 0 60px; height: 60px; padding: 0 22px; background: linear-gradient(180deg, #232b3b 0%, #161c28 100%); border-bottom: 2px solid #ed6203; box-shadow: 0 2px 14px rgba(2,6,23,.35); z-index: 5; }
 .gtour-brand { display: inline-flex; align-items: center; gap: 12px; padding: 6px 16px 6px 0; margin-right: 4px; background: none; border: 0; border-right: 1px solid rgba(255,255,255,.12); cursor: pointer; transition: opacity .15s ease; }
 .gtour-brand:hover { opacity: .82; }
 .gtour-brand img { width: 124px; height: auto; }
