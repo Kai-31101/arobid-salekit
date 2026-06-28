@@ -1579,18 +1579,21 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const findCtaElement = (doc: Document): HTMLElement | null => findClickableByText(doc, step.cta, 0.34)
 
   // Find a non-clickable "filled / selected" component named by the script (a
-  // form field, banner image, hall card, email input, etc.). Picks the LARGEST
-  // matching container under the cap, so we glow the whole field, not an inner span.
+  // form field, banner image, hall card, email input, etc.). Picks the SMALLEST
+  // matching element so we glow just the field/component, never a whole section.
+  // The selector only contains field/component-level nodes (no section/article/
+  // form wrappers), and bare text spans aren't selectable, so the smallest match
+  // is the field wrapper itself, not an inner label span.
   const findFocusElement = (doc: Document): HTMLElement | null => {
     if (!step.focus) return null
     const iframe = iframeRef.current
     const vw = iframe?.clientWidth || doc.documentElement.clientWidth
     const vh = iframe?.clientHeight || doc.documentElement.clientHeight
     const needle = step.focus.toLowerCase()
-    const sel = 'label.form-field, input, textarea, select, img, [class*="card"], [class*="upload"], [class*="thumbnail"], [class*="hall"], [class*="banner"], [class*="tier"], [class*="featured"], [class*="email"], [class*="supplier"], section, article'
+    const sel = 'label.form-field, input, textarea, select, img, [class*="card"], [class*="upload"], [class*="thumbnail"], [class*="hall"], [class*="banner"], [class*="tier"], [class*="featured"], [class*="email"], [class*="supplier"]'
     const nodes = Array.from(doc.querySelectorAll(sel)) as HTMLElement[]
     let best: HTMLElement | null = null
-    let bestArea = -1
+    let bestArea = Infinity
     for (const el of nodes) {
       const v = (el as HTMLInputElement).value || ''
       const label = ((el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('alt') || '') + ' ' + (el.getAttribute('placeholder') || '') + ' ' + v).replace(/\s+/g, ' ').trim().toLowerCase()
@@ -1598,8 +1601,10 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
       const r = el.getBoundingClientRect()
       if (r.width < 6 || r.height < 6) continue
       const area = r.width * r.height
-      if (area > 0.5 * vw * vh) continue
-      if (area > bestArea) { best = el; bestArea = area }
+      // Cap at ~22% of the viewport: a single field/component is never bigger,
+      // so big layout containers that happen to contain the text are skipped.
+      if (area > 0.22 * vw * vh) continue
+      if (area < bestArea) { best = el; bestArea = area }
     }
     return best
   }
