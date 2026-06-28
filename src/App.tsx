@@ -1429,6 +1429,16 @@ function ExhibitorAiOnboardingEntry({ onLogoClick, onStartScan }: { onLogoClick:
 }
 
 function ExhibitorGeneralInfoPage({ onLogoClick, onBack, onSubmit }: { onLogoClick: () => void; onBack: () => void; onSubmit: () => void }) {
+  // Open the public profile in a new tab WITHOUT switching to it. Simulating a
+  // Ctrl/Cmd+click on a real anchor is the most reliable cross-browser way to
+  // get a background tab (plain window.open foregrounds the new tab).
+  const previewProfileInBackground = () => {
+    const a = document.createElement('a')
+    a.href = 'https://arobid.com/en/supplier/019e4e0b-ba2d-77dc-8689-2fed495ef9a4'
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.dispatchEvent(new MouseEvent('click', { ctrlKey: true, metaKey: true, bubbles: true, cancelable: true }))
+  }
   return (
     <div className="general-info-page">
       <header className="general-info-topbar">
@@ -1448,7 +1458,7 @@ function ExhibitorGeneralInfoPage({ onLogoClick, onBack, onSubmit }: { onLogoCli
             <label>Phone Number <b>*</b><input placeholder="Enter your phone number" /></label>
           </div>
           <label className="full">Address <b>*</b><input defaultValue="Thửa Đất 681, Tờ Bản Đồ 05, Đường ĐT 747B, Khu Phố Phước Hải, Phường Tân Khánh, Thành Phố Hồ Chí Minh, Việt Nam" /></label>
-          <div className="general-submit-row"><button type="button" className="preview-profile-button" onClick={() => window.open('https://arobid.com/en/supplier/019e4e0b-ba2d-77dc-8689-2fed495ef9a4', '_blank', 'noopener,noreferrer')}>Preview Profile</button><button type="submit">Submit <span>→</span></button></div>
+          <div className="general-submit-row"><button type="button" className="preview-profile-button" onClick={previewProfileInBackground}>Preview Profile</button><button type="submit">Submit <span>→</span></button></div>
         </form>
       </main>
     </div>
@@ -1510,11 +1520,11 @@ const demoScriptSteps: DemoJourneyStep[] = [
     { actor: 'Exhibitor', action: 'Click Process to Payment', screen: 'Quick Signup Popup', path: '/tradexpo/select-position', cta: 'Proceed to Payment', prep: ['Select a booth'], script: 'Trước khi payment, hệ thống hiển thị popup Quick Signup ngay trên màn hình hiện tại.' },
     { actor: 'Exhibitor', action: 'Click Quick Sign up', screen: 'Payment Success', path: '/tradexpo/select-position', cta: 'Quick Sign Up', prep: ['Select a booth', 'Proceed to Payment'], script: 'Sau Quick Signup, Khách hàng thanh toán theo phương thức được chọn, sau khi thanh toán thành công, hệ thống chuyển đến màn hình thanh toán thành công.' },
     { actor: 'Exhibitor', action: 'Click Customize your booth', screen: '/exhibitor/ai-onboarding', path: '/tradexpo/payment-success', cta: 'Customize', script: 'Sau payment thành công, Exhibitor được dẫn đến bước customize booth, bắt đầu từ AI Onboarding.' },
-    { actor: 'Exhibitor', action: 'Mở Create Account', screen: '/exhibitor/login', path: '/exhibitor/login', script: 'Đây là màn hình tạo tài khoản Arobid cho Exhibitor. Form đã được prefill để demo nhanh.' },
-    { actor: 'Exhibitor', action: 'Click Create Arobid Account', screen: '/user/workspace', path: '/exhibitor/login', cta: 'Create Arobid Account', script: 'Chỉ từ màn hình login này, user mới đi thẳng vào Booth Config Workspace. Đây là flow riêng sau khi Exhibitor tạo tài khoản.' },
     { actor: 'Exhibitor', action: 'Click AroAI Onboarding', screen: 'AI Onboarding', path: '/exhibitor/ai-onboarding', cta: 'AroAI Onboarding', script: 'AroAI Onboarding cho phép doanh nghiệp nhập website để AI crawl và tạo profile ban đầu.' },
     { actor: 'Exhibitor', action: 'Click Start Scan & Create Profile', screen: 'AI Loading → General Info', path: '/exhibitor/ai-onboarding', cta: 'Start Scan', prep: ['AroAI Onboarding'], script: 'Sau quá trình AI extracting, hệ thống hiển thị trang General Info với dữ liệu đã được prefill.' },
     { actor: 'Exhibitor', action: 'Click Preview Profile', screen: 'General Info', path: '/exhibitor/general-info', cta: 'Preview Profile', script: 'Exhibitor có thể preview profile public trên Arobid.' },
+    { actor: 'Exhibitor', action: 'Mở Create Account', screen: '/exhibitor/login', path: '/exhibitor/login', script: 'Đây là màn hình tạo tài khoản Arobid cho Exhibitor. Form đã được prefill để demo nhanh.' },
+    { actor: 'Exhibitor', action: 'Click Create Arobid Account', screen: '/user/workspace', path: '/exhibitor/login', cta: 'Create Arobid Account', script: 'Chỉ từ màn hình login này, user mới đi thẳng vào Booth Config Workspace. Đây là flow riêng sau khi Exhibitor tạo tài khoản.' },
     { actor: 'Exhibitor', action: 'Click Submit', screen: 'General Info → Login', path: '/exhibitor/general-info', cta: 'Submit', script: 'Sau khi submit General Info, hệ thống quay lại login theo flow demo hiện tại.' },
     { actor: 'Exhibitor', action: 'Mở Booth Config Workspace', screen: '/user/workspace', path: '/user/workspace', script: 'Đây là workspace để Exhibitor cấu hình booth: màu sắc, banner, featured products, video, preview và save customization.' },
     { actor: 'Exhibitor', action: 'Click Select Product', screen: 'Product Selection Modal', path: '/user/workspace', cta: 'Select Product', script: 'Featured Products cho phép chọn sản phẩm đã được upload trước đó từ AI Onboarding. User có thể check/uncheck sản phẩm để đưa vào booth.' },
