@@ -606,7 +606,7 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .script-here { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; color: #c2410c; background: #ffedd5; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 @media (max-width: 640px) { .script-fab span:not(.script-fab-icon) { display: none; } .script-fab { padding: 0; width: 50px; justify-content: center; } }
 
-/* Center-bottom "Hướng dẫn sử dụng Salekit" guide button + overview popup */
+/* Center-bottom "Hướng dẫn sử dụng Sales Kit" guide button + overview popup */
 .salekit-guide-fab { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 0 22px; color: #fff; background: #64748b; border: 0; border-radius: 999px; box-shadow: 0 8px 20px rgba(15,23,42,.18); font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
 .salekit-guide-fab:hover { transform: translateX(-50%) translateY(-1px); background: #556070; box-shadow: 0 12px 26px rgba(15,23,42,.24); }
 .salekit-guide-fab-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 22px; height: 22px; color: #475569; background: #fff; border-radius: 50%; font-size: 13px; font-weight: 700; font-style: normal; line-height: 1; }

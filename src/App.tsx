@@ -1498,7 +1498,7 @@ type DemoJourneyStep = {
 const eid = furnitureExpoMock.id
 // Script content strictly follows "Arobid - TradeXpo Sell Kit - Offline Word.docx".
 const demoScriptSteps: DemoJourneyStep[] = [
-    { actor: 'Seller / Demo Presenter', action: 'Click Run Demo Journey', screen: 'Role Selection', path: '/', script: 'Đây là trang điều hướng chính của Salekit. Người xem có thể chạy toàn bộ demo journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.' },
+    { actor: 'Seller / Demo Presenter', action: 'Click Run Demo Journey', screen: 'Role Selection', path: '/', script: 'Đây là trang điều hướng chính của Sales Kit. Người xem có thể chạy toàn bộ demo journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.' },
     { actor: 'Seller / Demo Presenter', action: 'Expand từng Role card', screen: 'Role Selection', path: '/', script: 'Mỗi role đại diện cho một nhóm người dùng trong hệ sinh thái Arobid: Admin, Partner, Exhibitor và Visitor. Khi click vào role, hệ thống hiển thị các màn hình tương ứng đã được chuẩn bị cho demo.' },
     { actor: 'Admin', action: 'Mở Expo Management List', screen: '/admin/expo', path: '/admin/expo', script: 'Admin bắt đầu bằng việc quản lý danh sách Expo. Đây là nơi Admin xem các chương trình Expo đang có, trạng thái, ngày tổ chức, owner và các thông tin vận hành chính.' },
     { actor: 'Admin', action: 'Click Create New', screen: '/admin/expo/create', path: '/admin/expo', cta: 'Create New', script: 'Admin tạo Expo mới cho Partner. Form đã được prefill bằng dữ liệu mẫu để mô phỏng quy trình thật, bao gồm template, owner email, mô tả, category, thời gian, hall và số lượng booth.' },
@@ -1807,7 +1807,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   return (
     <div className="gtour-stage">
       <div className="gtour-topbar">
-        <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo.svg" alt="arobid.com" /><small>Salekit</small></button>
+        <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo.svg" alt="arobid.com" /><small>Sales Kit</small></button>
         <div className="gtour-progress">{steps.map((_, i) => <span key={i} className={i === index ? 'on' : i < index ? 'done' : ''} />)}</div>
         <div className="gtour-count">{index + 1} / {total}</div>
         <button className="gtour-exit" onClick={onExit}>Exit ✕</button>
@@ -1903,14 +1903,14 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
     },
   ]
 
-  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Salekit</small></button><span className="role-tag">Interactive role walkthrough</span></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1>Show every role, clearly.</h1><p className="role-intro">Select a role to expand its demo pages, then jump directly to any built screen with realistic, pre-filled sample data.</p><button className="run-demo-journey-button" onClick={() => onSelect('/demo-journey')}>Run Demo Journey</button><p className="desktop-hint">💻 For the best experience, explore the journey on a desktop browser.</p><section className="role-grid">{roles.map((item) => { const isExpanded = expandedRoles.includes(item.role); return <article key={item.role} className={`role-card ${isExpanded ? 'expanded' : ''}`}><button className="role-card-main" onClick={() => toggleRole(item.role)} aria-expanded={isExpanded}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p></button>{isExpanded && <div className="role-page-list">{item.pages.map(([label, path]) => <button key={path} onClick={() => onSelect(path)}><strong>{label}</strong></button>)}</div>}</article> })}</section></main>
-    <button className="salekit-guide-fab" onClick={() => setGuideOpen(true)}><span className="salekit-guide-fab-icon" aria-hidden="true">i</span><span>Hướng dẫn sử dụng Salekit</span></button>
+  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><span className="role-tag">Interactive role walkthrough</span></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1>Show every role, clearly.</h1><p className="role-intro">Select a role to expand its demo pages, then jump directly to any built screen with realistic, pre-filled sample data.</p><button className="run-demo-journey-button" onClick={() => onSelect('/demo-journey')}>Run Demo Journey</button><p className="desktop-hint">💻 For the best experience, explore the journey on a desktop browser.</p><section className="role-grid">{roles.map((item) => { const isExpanded = expandedRoles.includes(item.role); return <article key={item.role} className={`role-card ${isExpanded ? 'expanded' : ''}`}><button className="role-card-main" onClick={() => toggleRole(item.role)} aria-expanded={isExpanded}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p></button>{isExpanded && <div className="role-page-list">{item.pages.map(([label, path]) => <button key={path} onClick={() => onSelect(path)}><strong>{label}</strong></button>)}</div>}</article> })}</section></main>
+    <button className="salekit-guide-fab" onClick={() => setGuideOpen(true)}><span className="salekit-guide-fab-icon" aria-hidden="true">i</span><span>Hướng dẫn sử dụng Sales Kit</span></button>
     {guideOpen && <div className="guide-overlay" onClick={() => setGuideOpen(false)}>
       <div className="guide-card" onClick={(e) => e.stopPropagation()}>
         <button className="guide-close" onClick={() => setGuideOpen(false)} aria-label="Đóng">✕</button>
-        <span className="guide-eyebrow">Arobid · TradeXpo Salekit</span>
-        <h2>Hướng dẫn sử dụng Salekit</h2>
-        <p>Salekit giúp Partner thấy cách Arobid vận hành toàn bộ hành trình Expo theo từng vai trò. Đây là trang điều hướng chính: bạn có thể chạy toàn bộ Demo Journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.</p>
+        <span className="guide-eyebrow">Arobid · TradeXpo Sales Kit</span>
+        <h2>Hướng dẫn sử dụng Sales Kit</h2>
+        <p>Sales Kit giúp Partner thấy cách Arobid vận hành toàn bộ hành trình Expo theo từng vai trò. Đây là trang điều hướng chính: bạn có thể chạy toàn bộ Demo Journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.</p>
         <p>Mỗi role đại diện cho một nhóm người dùng trong hệ sinh thái Arobid — <strong>Admin, Partner, Exhibitor và Visitor</strong>. Khi chọn một role, hệ thống hiển thị các màn hình tương ứng đã được chuẩn bị sẵn cho demo.</p>
         <div className="guide-flow">
           <span>Admin tạo Expo</span><b>→</b><span>Partner cấu hình & mời tham gia</span><b>→</b><span>Exhibitor onboarding & customize booth</span><b>→</b><span>Visitor nhận lời mời & tham quan Expo</span>
