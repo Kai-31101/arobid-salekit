@@ -1539,6 +1539,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const [phase, setPhase] = useState<'intro' | 'highlight' | 'script' | 'action'>('intro')
   const [runKey, setRunKey] = useState(0)
   const [typed, setTyped] = useState('')
+  const [skipOpen, setSkipOpen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
   const typingDone = typed.length >= step.script.length
@@ -1759,6 +1760,10 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const next = () => { closeTransientModals(); index === total - 1 ? onExit() : setIndex(index + 1) }
   const back = () => { closeTransientModals(); if (index > 0) setIndex(index - 1) }
   const replay = () => { setPhase('highlight'); setTyped(''); setRunKey((k) => k + 1) }
+  // Jump straight to a chosen step. The progress bar fills/unfills from the new
+  // index and the journey resumes normally from there (the step-reset effect
+  // restarts the reveal → script sequence).
+  const goTo = (i: number) => { setSkipOpen(false); closeTransientModals(); if (i !== index) setIndex(i); else replay() }
 
   // Demo the interaction: click the real CTA inside the cloned screen so the
   // modal actually opens / the page actually navigates, then move to the 'action'
@@ -1809,12 +1814,20 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
           <div className="gtour-controls">
             <button className="back" onClick={back} disabled={index === 0}>◂ Back</button>
             <button className="replay" onClick={replay}>⟳ Replay</button>
+            <button className="skipto" onClick={() => setSkipOpen(true)}>↪ Skip to</button>
             {phase === 'script' && step.cta
               ? <button className="next" onClick={runDemo}>Open ▸</button>
               : <button className="next" onClick={next}>{index === total - 1 ? 'Finish ✓' : 'Next ▸'}</button>}
           </div>
         </div>
       </div>
+
+      {skipOpen && <div className="script-overlay" onClick={() => setSkipOpen(false)}>
+        <div className="script-panel" onClick={(e) => e.stopPropagation()}>
+          <header className="script-panel-head"><div><h2>Skip to a step</h2><p>{total} steps · jump to any point, then continue the journey from there.</p></div><button className="script-close" onClick={() => setSkipOpen(false)} aria-label="Close">✕</button></header>
+          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text">{s.script}</td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
+        </div>
+      </div>}
     </div>
   )
 }

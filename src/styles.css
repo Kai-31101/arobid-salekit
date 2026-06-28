@@ -592,6 +592,8 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .script-dir { text-align: center; }
 .script-go { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 14px; color: #fff; background: var(--btn-primary-bg); border: 0; border-radius: 999px; box-shadow: var(--btn-primary-shadow); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: transform .14s ease, filter .14s ease; }
 .script-go:hover { transform: translateY(-1px); filter: saturate(1.06); }
+.script-table tbody tr.script-row-current, .script-table tbody tr.script-row-current:hover { background: #fff7ed; }
+.script-here { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; color: #c2410c; background: #ffedd5; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 @media (max-width: 640px) { .script-fab span:not(.script-fab-icon) { display: none; } .script-fab { padding: 0; width: 50px; justify-content: center; } }
 
 /* Center-bottom "Hướng dẫn sử dụng Salekit" guide button + overview popup */
@@ -830,6 +832,8 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .gtour-controls button:hover:not(:disabled) { transform: translateY(-1px); }
 .gtour-controls .back, .gtour-controls .replay { color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); }
 .gtour-controls .back:hover:not(:disabled), .gtour-controls .replay:hover { background: rgba(255,255,255,.22); }
+.gtour-controls .skipto { color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); }
+.gtour-controls .skipto:hover { background: rgba(255,255,255,.22); }
 .gtour-controls .next { padding: 0 20px; color: #fff; background: var(--btn-primary-bg); border: 0; box-shadow: var(--btn-primary-shadow); }
 .gtour-controls .next:hover { filter: saturate(1.06); }
 .gtour-controls button:disabled { opacity: .38; cursor: not-allowed; }
