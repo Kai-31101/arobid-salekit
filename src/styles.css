@@ -878,6 +878,7 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
   }
   .gtour-dock.open {
     max-height: 48vh;
+    transform: none;
     pointer-events: auto;
   }
   .gtour-dock-card {
