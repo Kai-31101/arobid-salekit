@@ -993,4 +993,20 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
   /* --- fixed-width modals that appear in the demo flow --- */
   .quick-signup-card,
   .booth-benefits-modal { width: min(448px, calc(100vw - 32px)); }
+
+  /* --- floating FABs must not stack on top of each other on mobile.
+     The full-width guide pill was covering the "Show Script" button (so the
+     script popup could never open) and the language toggle. Separate them:
+     guide pill sits on its own row above the two corner buttons. --- */
+  .salekit-guide-fab { bottom: 80px; max-width: calc(100vw - 32px); }
+  .script-fab { right: 16px; bottom: 18px; }
+  .lang-fab { left: 16px; bottom: 18px; }
+
+  /* --- script / skip-to table: 6 columns don't fit a phone. Drop the
+     low-value columns (Actor/Action/Screen) and keep #, Script, and Go so
+     it's usable without horizontal scrolling. --- */
+  .script-table { min-width: 0; table-layout: auto; }
+  .script-table thead th:nth-child(2), .script-table tbody td:nth-child(2),
+  .script-table thead th:nth-child(3), .script-table tbody td:nth-child(3),
+  .script-table thead th:nth-child(4), .script-table tbody td:nth-child(4) { display: none; }
 }
