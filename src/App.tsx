@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { furnitureExpoMock, mockPartnerEmails } from './mockData'
+import { useLanguage } from './i18n'
+import { demoScriptEn } from './i18n.dict'
 
 type Expo = {
   image: string
@@ -1559,7 +1561,9 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
-  const typingDone = typed.length >= step.script.length
+  const { lang } = useLanguage()
+  const activeScript = lang === 'en' ? (demoScriptEn[index] ?? step.script) : step.script
+  const typingDone = typed.length >= activeScript.length
 
   // Find the real clickable control named by some text (a button/tab/card label).
   // We pick the SMALLEST clickable element whose text (or aria-label) contains the
@@ -1720,16 +1724,16 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
 
   // Typewriter effect for the explanation script (game-style text reveal).
   useEffect(() => {
-    if (phase === 'action') { setTyped(step.script); return }
+    if (phase === 'action') { setTyped(activeScript); return }
     if (phase !== 'script') { setTyped(''); return }
     let count = 0
     const id = window.setInterval(() => {
       count += 1
-      setTyped(step.script.slice(0, count))
-      if (count >= step.script.length) window.clearInterval(id)
+      setTyped(activeScript.slice(0, count))
+      if (count >= activeScript.length) window.clearInterval(id)
     }, 18)
     return () => window.clearInterval(id)
-  }, [phase, index, runKey, step.script])
+  }, [phase, index, runKey, activeScript])
 
   // Repaint the in-place highlights whenever the phase/step changes.
   useEffect(() => {
@@ -1824,8 +1828,8 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
       <div className={`gtour-dock ${phase === 'script' || phase === 'action' ? 'open' : ''}`}>
         <div className="gtour-dock-card">
           <div className="gtour-speaker"><span>{step.actor}</span><b className="gtour-stepno">Step {index + 1} / {total}</b><small>{phase === 'action' ? `${step.screen} — demo` : `${step.screen} — ${step.action}`}</small></div>
-          <p className="gtour-line" onClick={() => setTyped(step.script)}>
-            {phase === 'action' ? step.script : typed}{phase === 'script' && !typingDone && <i className="gtour-caret" />}
+          <p className="gtour-line" onClick={() => setTyped(activeScript)}>
+            {phase === 'action' ? activeScript : typed}{phase === 'script' && !typingDone && <i className="gtour-caret" />}
           </p>
           <div className="gtour-controls">
             <button className="back" onClick={back} disabled={index === 0}>◂ Back</button>
@@ -1841,7 +1845,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
       {skipOpen && <div className="script-overlay" onClick={() => setSkipOpen(false)}>
         <div className="script-panel" onClick={(e) => e.stopPropagation()}>
           <header className="script-panel-head"><div><h2>Skip to a step</h2><p>{total} steps · jump to any point, then continue the journey from there.</p></div><button className="script-close" onClick={() => setSkipOpen(false)} aria-label="Close">✕</button></header>
-          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{s.script}</span></td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
+          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{lang === 'en' ? (demoScriptEn[i] ?? s.script) : s.script}</span></td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
         </div>
       </div>}
     </div>
@@ -1849,6 +1853,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
 }
 
 function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
+  const { lang } = useLanguage()
   const [expandedRoles, setExpandedRoles] = useState<string[]>([])
   const [scriptOpen, setScriptOpen] = useState(false)
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
@@ -1904,18 +1909,32 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
   ]
 
   return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><span className="role-tag">Interactive role walkthrough</span></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1>Show every role, clearly.</h1><p className="role-intro">Select a role to expand its demo pages, then jump directly to any built screen with realistic, pre-filled sample data.</p><button className="run-demo-journey-button" onClick={() => onSelect('/demo-journey')}>Run Demo Journey</button><p className="desktop-hint">💻 For the best experience, explore the journey on a desktop browser.</p><section className="role-grid">{roles.map((item) => { const isExpanded = expandedRoles.includes(item.role); return <article key={item.role} className={`role-card ${isExpanded ? 'expanded' : ''}`}><button className="role-card-main" onClick={() => toggleRole(item.role)} aria-expanded={isExpanded}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p></button>{isExpanded && <div className="role-page-list">{item.pages.map(([label, path]) => <button key={path} onClick={() => onSelect(path)}><strong>{label}</strong></button>)}</div>}</article> })}</section></main>
-    <button className="salekit-guide-fab" onClick={() => setGuideOpen(true)}><span className="salekit-guide-fab-icon" aria-hidden="true">i</span><span>Hướng dẫn sử dụng Sales Kit</span></button>
+    <button className="salekit-guide-fab" onClick={() => setGuideOpen(true)}><span className="salekit-guide-fab-icon" aria-hidden="true">i</span><span>{lang === 'vi' ? 'Hướng dẫn sử dụng Sales Kit' : 'Sales Kit User Guide'}</span></button>
     {guideOpen && <div className="guide-overlay" onClick={() => setGuideOpen(false)}>
       <div className="guide-card" onClick={(e) => e.stopPropagation()}>
-        <button className="guide-close" onClick={() => setGuideOpen(false)} aria-label="Đóng">✕</button>
+        <button className="guide-close" onClick={() => setGuideOpen(false)} aria-label={lang === 'vi' ? 'Đóng' : 'Close'}>✕</button>
         <span className="guide-eyebrow">Arobid · TradeXpo Sales Kit</span>
-        <h2>Hướng dẫn sử dụng Sales Kit</h2>
-        <p>Sales Kit giúp Partner thấy cách Arobid vận hành toàn bộ hành trình Expo theo từng vai trò. Đây là trang điều hướng chính: bạn có thể chạy toàn bộ Demo Journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.</p>
-        <p>Mỗi role đại diện cho một nhóm người dùng trong hệ sinh thái Arobid — <strong>Admin, Partner, Exhibitor và Visitor</strong>. Khi chọn một role, hệ thống hiển thị các màn hình tương ứng đã được chuẩn bị sẵn cho demo.</p>
+        <h2>{lang === 'vi' ? 'Hướng dẫn sử dụng Sales Kit' : 'Sales Kit User Guide'}</h2>
+        {lang === 'vi' ? (
+          <p>Sales Kit giúp Partner thấy cách Arobid vận hành toàn bộ hành trình Expo theo từng vai trò. Đây là trang điều hướng chính: bạn có thể chạy toàn bộ Demo Journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.</p>
+        ) : (
+          <p>The Sales Kit shows Partners how Arobid runs the entire Expo journey, role by role. This is the main navigation page: you can run the whole Demo Journey from the start, or open each role to view individual screens.</p>
+        )}
+        {lang === 'vi' ? (
+          <p>Mỗi role đại diện cho một nhóm người dùng trong hệ sinh thái Arobid — <strong>Admin, Partner, Exhibitor và Visitor</strong>. Khi chọn một role, hệ thống hiển thị các màn hình tương ứng đã được chuẩn bị sẵn cho demo.</p>
+        ) : (
+          <p>Each role represents a user group in the Arobid ecosystem — <strong>Admin, Partner, Exhibitor and Visitor</strong>. When you select a role, the system shows the screens prepared for that demo.</p>
+        )}
         <div className="guide-flow">
-          <span>Admin tạo Expo</span><b>→</b><span>Partner cấu hình & mời tham gia</span><b>→</b><span>Exhibitor onboarding & customize booth</span><b>→</b><span>Visitor nhận lời mời & tham quan Expo</span>
+          {lang === 'vi'
+            ? <><span>Admin tạo Expo</span><b>→</b><span>Partner cấu hình & mời tham gia</span><b>→</b><span>Exhibitor onboarding & customize booth</span><b>→</b><span>Visitor nhận lời mời & tham quan Expo</span></>
+            : <><span>Admin creates the Expo</span><b>→</b><span>Partner configures & invites</span><b>→</b><span>Exhibitor onboards & customizes booth</span><b>→</b><span>Visitor receives invite & visits the Expo</span></>}
         </div>
-        <p className="guide-note">Toàn bộ dữ liệu trong demo là <strong>mock data</strong>, nhưng flow phản ánh đúng journey sản phẩm end-to-end. Mỗi bước tập trung vào một tương tác chính trên màn hình.</p>
+        {lang === 'vi' ? (
+          <p className="guide-note">Toàn bộ dữ liệu trong demo là <strong>mock data</strong>, nhưng flow phản ánh đúng journey sản phẩm end-to-end. Mỗi bước tập trung vào một tương tác chính trên màn hình.</p>
+        ) : (
+          <p className="guide-note">All data in this demo is <strong>mock data</strong>, but the flow mirrors the real end-to-end product journey. Each step focuses on one key interaction on screen.</p>
+        )}
         <div className="guide-actions">
           <button className="guide-run" onClick={() => { setGuideOpen(false); onSelect('/demo-journey') }}>Run Demo Journey ▸</button>
         </div>
@@ -1925,7 +1944,7 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
     {scriptOpen && <div className="script-overlay" onClick={() => setScriptOpen(false)}>
       <div className="script-panel" onClick={(e) => e.stopPropagation()}>
         <header className="script-panel-head"><div><h2>Demo Journey Script</h2><p>{demoScriptSteps.length} steps · jump to any screen the script is talking about.</p></div><button className="script-close" onClick={() => setScriptOpen(false)} aria-label="Close script">✕</button></header>
-        <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Direction</th></tr></thead><tbody>{demoScriptSteps.map((s, i) => <tr key={i}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{s.script}</span></td><td className="script-dir"><button className="script-go" onClick={() => onSelect(s.path)}>Go ▸</button></td></tr>)}</tbody></table></div>
+        <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Direction</th></tr></thead><tbody>{demoScriptSteps.map((s, i) => <tr key={i}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{lang === 'en' ? (demoScriptEn[i] ?? s.script) : s.script}</span></td><td className="script-dir"><button className="script-go" onClick={() => onSelect(s.path)}>Go ▸</button></td></tr>)}</tbody></table></div>
       </div>
     </div>}
     </div>

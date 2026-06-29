@@ -606,6 +606,16 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .script-here { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; color: #c2410c; background: #ffedd5; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 @media (max-width: 640px) { .script-fab span:not(.script-fab-icon) { display: none; } .script-fab { padding: 0; width: 50px; justify-content: center; } }
 
+/* Floating VI / EN language toggle — present on every screen (bottom-left so it
+   clears the bottom-right script FAB and the centered guide FAB). High z-index so
+   it stays reachable above the demo-journey stage too. */
+.lang-fab { position: fixed; left: 24px; bottom: 26px; z-index: 9999; display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 4px; background: #0a1f63; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; box-shadow: 0 10px 26px rgba(7,24,78,.34); cursor: pointer; font-family: "Inter Tight", Inter, system-ui, sans-serif; transition: filter .15s ease; }
+.lang-fab:hover { filter: brightness(1.1); }
+.lang-fab span { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 32px; padding: 0 10px; color: rgba(255,255,255,.6); border-radius: 999px; font-size: 13px; font-weight: 700; letter-spacing: .4px; transition: background .15s ease, color .15s ease; }
+.lang-fab span.on { color: #07184e; background: linear-gradient(135deg, #ffc48a, #ff9e52); box-shadow: 0 2px 8px rgba(237,98,3,.4); }
+.lang-fab i { flex: 0 0 auto; width: 1px; height: 18px; background: rgba(255,255,255,.18); }
+@media (max-width: 640px) { .lang-fab { left: 16px; bottom: 18px; height: 36px; } .lang-fab span { height: 28px; min-width: 30px; font-size: 12px; padding: 0 8px; } }
+
 /* Center-bottom "Hướng dẫn sử dụng Sales Kit" guide button + overview popup */
 .salekit-guide-fab { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 0 22px; color: #fff; background: #64748b; border: 0; border-radius: 999px; box-shadow: 0 8px 20px rgba(15,23,42,.18); font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
 .salekit-guide-fab:hover { transform: translateX(-50%) translateY(-1px); background: #556070; box-shadow: 0 12px 26px rgba(15,23,42,.24); }
@@ -902,4 +912,85 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
   }
   .gtour-controls { flex: 0 0 auto; flex-wrap: wrap; justify-content: center; }
   .gtour-controls button { padding: 0 14px; }
+}
+
+/* ============================================================
+   Mobile fixes (≤768px) — authoritative pass.
+   Several screens (the whole TradeXpo suite, the booth-select and
+   payment pages, and a few custom topbars) were built with fixed-pixel
+   / absolutely-positioned desktop layouts that overlap or overflow on a
+   phone. This block resets those to normal flow. Placed last so it wins
+   over the earlier partial responsive rules.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* --- custom topbars: let title/label wrap instead of overlapping brand --- */
+  .role-topbar,
+  .exhibitor-email-page > header { flex-wrap: wrap; height: auto; min-height: 56px; padding: 10px 16px; row-gap: 2px; }
+  .role-topbar .role-tag,
+  .exhibitor-email-page > header > span { font-size: 12px; line-height: 1.3; text-align: right; }
+  .ai-onboarding-topbar { padding: 0 14px; }
+  .ai-onboarding-topbar h1 { font-size: 18px; }
+  .general-info-topbar h1 { font-size: 18px; }
+  .ai-language-button, .general-language-button { display: none; }
+
+  /* --- horizontally-wide admin/partner data tables scroll inside their card --- */
+  .table-card { overflow-x: auto; }
+
+  /* --- TradeXpo hero: absolute fixed-px layout -> vertical flow --- */
+  .tradexpo-hero-inner { position: relative; height: auto; min-height: 480px; margin: 0 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 230px 18px 24px; }
+  .tradexpo-badge { position: static; align-self: flex-start; }
+  .tradexpo-hero h1 { position: static; width: auto; font-size: 26px; line-height: 33px; }
+  .tradexpo-hero-buttons { position: static; flex-direction: column; align-items: stretch; gap: 10px; }
+  .tradexpo-hero-buttons button { width: 100%; min-width: 0; }
+  .tradexpo-stats { position: static; flex-direction: row; flex-wrap: wrap; gap: 12px 20px; }
+  .tradexpo-stats div { min-width: 0; flex: 1 0 40%; border-right: 0; }
+  .tradexpo-countdown { display: none; }
+
+  /* --- exhibitors section: stack the search/filter toolbar --- */
+  .tradexpo-exhibitors { min-height: 0; padding: 48px 16px; }
+  .tradexpo-section-title { flex-direction: column; align-items: stretch; gap: 12px; }
+  .tradexpo-section-title div { flex-wrap: wrap; }
+  .tradexpo-section-title input { width: 100%; }
+
+  /* --- "Who Should Attend": absolute -> flow --- */
+  .tradexpo-attend { position: static; height: auto; padding: 48px 0; }
+  .tradexpo-attend h2 { position: static; }
+  .tradexpo-attend > div { position: static; inset: auto; height: auto; display: flex; flex-direction: column; gap: 24px; margin-top: 28px; }
+  .tradexpo-attend article,
+  .tradexpo-attend article:nth-child(2) { position: static; left: auto; top: auto; right: auto; width: auto; }
+
+  /* --- categories --- */
+  .tradexpo-categories { height: auto; }
+
+  /* --- "Exclusive Values": absolute -> flow --- */
+  .tradexpo-values { position: static; height: auto; padding: 48px 16px; }
+  .tradexpo-values h2,
+  .tradexpo-values > p { position: static; left: auto; right: auto; top: auto; }
+  .tradexpo-values > p { margin: 8px 0 24px; }
+  .tradexpo-values > div { position: static; top: auto; left: auto; width: auto; max-width: none; margin: 0; transform: none; grid-template-columns: 1fr; }
+
+  /* --- booths section --- */
+  .tradexpo-road-banner { height: auto; padding: 32px 20px; }
+
+  /* --- booth-select page: fixed two-col -> single column --- */
+  .booth-select-main { height: auto; overflow: visible; }
+  .booth-breadcrumb { height: auto; min-height: 44px; padding: 8px 16px; flex-wrap: wrap; }
+  .booth-select-content { width: auto; height: auto; margin: 16px; grid-template-columns: 1fr; gap: 16px; }
+  .booth-map-card { width: auto; height: auto; aspect-ratio: 4 / 3; }
+  .booth-map-card > img { width: 100%; height: 100%; }
+  .booth-hall-tabs { grid-template-columns: repeat(4, 1fr); width: min(340px, calc(100% - 24px)); }
+  .booth-order-card { width: auto; height: auto; }
+
+  /* --- payment success: fixed 412px widths -> fluid --- */
+  .payment-success-main { min-height: 0; padding: 32px 16px; }
+  .payment-success-shell,
+  .booking-confirmation-card,
+  .payment-success-actions,
+  .payment-success-hero,
+  .booking-email-note { width: auto; max-width: 100%; }
+  .payment-success-hero p { white-space: normal; }
+
+  /* --- fixed-width modals that appear in the demo flow --- */
+  .quick-signup-card,
+  .booth-benefits-modal { width: min(448px, calc(100vw - 32px)); }
 }
