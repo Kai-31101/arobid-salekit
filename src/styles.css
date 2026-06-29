@@ -900,6 +900,6 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
     -webkit-overflow-scrolling: touch;
     font-size: 15px;
   }
-  .gtour-controls { flex: 0 0 auto; flex-wrap: wrap; }
+  .gtour-controls { flex: 0 0 auto; flex-wrap: wrap; justify-content: center; }
   .gtour-controls button { padding: 0 14px; }
 }
