@@ -912,6 +912,22 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
   }
   .gtour-controls { flex: 0 0 auto; flex-wrap: wrap; justify-content: center; }
   .gtour-controls button { padding: 0 14px; }
+
+  /* Action phase: the popup that just opened inside the screen is the focus, so
+     shrink the dock to a slim control bar. This gives the iframe back most of
+     the viewport height so tall modals (Quick Signup, 3D template, etc.) are
+     fully visible instead of being cut off behind a 48vh dock. */
+  .gtour-dock.action.open { max-height: 30vh; }
+  .gtour-dock.action .gtour-dock-card { max-height: 30vh; }
+  .gtour-dock.action .gtour-line {
+    flex: 0 0 auto;
+    max-height: 3em;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
 
 /* ============================================================

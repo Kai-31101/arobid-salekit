@@ -131,6 +131,36 @@ function walk(root: Node, lang: Lang) {
   }
 }
 
+// ---- Original-English lookup (for the demo highlighter) --------------------
+//
+// When the page is shown in Vietnamese, the demo's highlight matchers still look
+// for English labels (step.cta / step.focus). These helpers return the ORIGINAL
+// English text/attribute of an element regardless of the current display
+// language, so matching is always language-agnostic. Untranslated nodes (proper
+// nouns, emails, mock values) have no stored original and fall back to their
+// live value — which is still English — so this is correct in both languages.
+
+export function originalText(el: Element): string {
+  let out = ''
+  const collect = (node: Node) => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        out += TEXT_ORIG.get(child as Text) ?? (child as Text).nodeValue ?? ''
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        collect(child)
+      }
+    }
+  }
+  collect(el)
+  return out
+}
+
+export function originalAttr(el: Element, attr: string): string {
+  const store = ATTR_ORIG.get(el)
+  if (store && attr in store) return store[attr]
+  return el.getAttribute(attr) ?? ''
+}
+
 let observer: MutationObserver | null = null
 
 function startObserver() {
@@ -182,6 +212,11 @@ function applyAll() {
  */
 export function I18nRoot() {
   useLayoutEffect(() => {
+    // Let the demo highlighter (running in the parent window) read original
+    // English text out of this realm's DOM, so it matches English needles even
+    // while the page is displayed in Vietnamese.
+    ;(window as unknown as Record<string, unknown>).__i18nOriginalText = originalText
+    ;(window as unknown as Record<string, unknown>).__i18nOriginalAttr = originalAttr
     startObserver()
     applyAll()
     const onChange = () => applyAll()

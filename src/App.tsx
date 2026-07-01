@@ -1570,6 +1570,19 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   // needle, so we hit the actual button, never a big section. Inputs are skipped.
   // maxAreaFactor caps element size — small for highlighting (don't glow a whole
   // map), relaxed for clicking (the booth map IS the clickable target).
+  // The cloned screen inside the iframe is shown in the user's language (Vietnamese
+  // by default), but step.cta / step.focus are authored in English. Read each
+  // element's ORIGINAL English text/attributes from the iframe's i18n engine so
+  // matching is language-agnostic; fall back to the live DOM value when the engine
+  // isn't present (e.g. before it mounts, or for untranslated nodes).
+  const enText = (el: HTMLElement): string => {
+    const w = el.ownerDocument.defaultView as unknown as { __i18nOriginalText?: (e: Element) => string } | null
+    return w?.__i18nOriginalText?.(el) ?? el.textContent ?? ''
+  }
+  const enAttr = (el: HTMLElement, attr: string): string => {
+    const w = el.ownerDocument.defaultView as unknown as { __i18nOriginalAttr?: (e: Element, a: string) => string } | null
+    return w?.__i18nOriginalAttr?.(el, attr) ?? el.getAttribute(attr) ?? ''
+  }
   const findClickableByText = (doc: Document, text: string | undefined, maxAreaFactor = 0.34): HTMLElement | null => {
     if (!text) return null
     const iframe = iframeRef.current
@@ -1583,7 +1596,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     let bestAnyArea = Infinity
     for (const el of nodes) {
       if (el.matches('input, textarea, select, label')) continue
-      const label = ((el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '')).replace(/\s+/g, ' ').trim().toLowerCase()
+      const label = (enText(el) + ' ' + enAttr(el, 'aria-label')).replace(/\s+/g, ' ').trim().toLowerCase()
       if (!label.includes(needle)) continue
       const r = el.getBoundingClientRect()
       if (r.width < 4 || r.height < 4) continue
@@ -1618,7 +1631,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     let bestArea = Infinity
     for (const el of nodes) {
       const v = (el as HTMLInputElement).value || ''
-      const label = ((el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('alt') || '') + ' ' + (el.getAttribute('placeholder') || '') + ' ' + v).replace(/\s+/g, ' ').trim().toLowerCase()
+      const label = (enText(el) + ' ' + enAttr(el, 'aria-label') + ' ' + enAttr(el, 'alt') + ' ' + enAttr(el, 'placeholder') + ' ' + v).replace(/\s+/g, ' ').trim().toLowerCase()
       if (!label.includes(needle)) continue
       const r = el.getBoundingClientRect()
       if (r.width < 6 || r.height < 6) continue
@@ -1631,13 +1644,32 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     return best
   }
 
-  // Scroll a highlighted element into view inside the cloned screen if it is off
-  // screen, so the mentioned component is always visible.
+  // Scroll a highlighted element into view inside the cloned screen so the
+  // mentioned component is always visible. On mobile we ALWAYS center it (the
+  // small viewport means even an on-screen target reads better dead-center, and
+  // the user expects the first highlight to land mid-screen). On desktop we only
+  // nudge when it's near an edge, to avoid jarring jumps for visible targets. The
+  // iframe's own innerHeight already excludes the bottom dock on mobile (the dock
+  // is a flex section, not an overlay), so centering within it lands clear of it.
   const scrollIntoViewIfNeeded = (el: HTMLElement, win: Window) => {
+    const isMobile = win.innerWidth <= 760
     const r = el.getBoundingClientRect()
-    if (r.top < 64 || r.bottom > win.innerHeight - 64) {
+    if (isMobile || r.top < 64 || r.bottom > win.innerHeight - 64) {
       el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
+  }
+
+  // Re-scroll the highlighted component into the (possibly shrunken) iframe
+  // viewport without touching the glow classes — used after the dock animates
+  // open, since opening the dock shortens the iframe and can push the target
+  // off-screen on mobile.
+  const scrollHighlightIntoView = () => {
+    const iframe = iframeRef.current
+    const doc = iframe?.contentDocument
+    const win = iframe?.contentWindow
+    if (!doc || !win) return
+    const primary = findFocusElement(doc) || findCtaElement(doc)
+    if (primary) scrollIntoViewIfNeeded(primary, win)
   }
 
   // Animate the REAL component inside the cloned screen (no overlay boxes).
@@ -1703,7 +1735,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     if (focus && focus !== cta) focus.classList.add('gtour-live-on')
     // Auto-scroll the mentioned component into view (focus first, else the CTA).
     const primary = focus || cta
-    if (primary && phase === 'highlight') scrollIntoViewIfNeeded(primary, win)
+    if (primary && (phase === 'highlight' || phase === 'script')) scrollIntoViewIfNeeded(primary, win)
   }
 
   // Restart the cinematic sequence whenever the step (or a replay) changes. We
@@ -1738,6 +1770,16 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   // Repaint the in-place highlights whenever the phase/step changes.
   useEffect(() => {
     const t = window.setTimeout(paintHighlights, 120)
+    return () => window.clearTimeout(t)
+  }, [phase, index, runKey])
+
+  // When the script dock slides open it shortens the iframe (on mobile the dock
+  // is a fixed bottom section that the screen shrinks to make room for). That
+  // can push the highlighted component below the new, shorter viewport, so
+  // re-scroll it into view once the dock-open animation (~0.4s) has settled.
+  useEffect(() => {
+    if (phase !== 'script') return
+    const t = window.setTimeout(scrollHighlightIntoView, 480)
     return () => window.clearTimeout(t)
   }, [phase, index, runKey])
 
@@ -1793,7 +1835,19 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     if (!doc) return
     findClickableByText(doc, step.cta, 0.95)?.click()
   }
-  const runDemo = () => { clickPrimaryCta(); setPhase('action') }
+  // After the CTA opens a modal/popup, bring it fully into view. The dock
+  // compacts in the action phase (see CSS) so the iframe regains height; a
+  // modal that's anchored to (or overflows past) the top still gets scrolled
+  // into the visible area on a phone.
+  const scrollPopupIntoView = () => {
+    const iframe = iframeRef.current
+    const doc = iframe?.contentDocument
+    const win = iframe?.contentWindow
+    if (!doc || !win) return
+    const modal = doc.querySelector('[role="dialog"], .template-modal-backdrop, .quick-signup-overlay, .booth-benefits-overlay') as HTMLElement | null
+    if (modal) modal.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+  const runDemo = () => { clickPrimaryCta(); setPhase('action'); window.setTimeout(scrollPopupIntoView, 260) }
 
   // Keyboard controls, game-style. In the script phase, only steps with a CTA
   // run a demo click; the rest just advance to the next step.
@@ -1825,7 +1879,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
         <div className={`gtour-veil ${phase}${(phase === 'script' && typingDone) || phase === 'action' ? ' through' : ''}`} onClick={phase === 'highlight' ? advance : undefined} />
       </div>
 
-      <div className={`gtour-dock ${phase === 'script' || phase === 'action' ? 'open' : ''}`}>
+      <div className={`gtour-dock ${phase} ${phase === 'script' || phase === 'action' ? 'open' : ''}`}>
         <div className="gtour-dock-card">
           <div className="gtour-speaker"><span>{step.actor}</span><b className="gtour-stepno">Step {index + 1} / {total}</b><small>{phase === 'action' ? `${step.screen} — demo` : `${step.screen} — ${step.action}`}</small></div>
           <p className="gtour-line" onClick={() => setTyped(activeScript)}>
