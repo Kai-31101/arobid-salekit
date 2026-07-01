@@ -1558,6 +1558,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const [runKey, setRunKey] = useState(0)
   const [typed, setTyped] = useState('')
   const [skipOpen, setSkipOpen] = useState(false)
+  const [dockHidden, setDockHidden] = useState(false)
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
@@ -1879,7 +1880,10 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
         <div className={`gtour-veil ${phase}${(phase === 'script' && typingDone) || phase === 'action' ? ' through' : ''}`} onClick={phase === 'highlight' ? advance : undefined} />
       </div>
 
-      <div className={`gtour-dock ${phase} ${phase === 'script' || phase === 'action' ? 'open' : ''}`}>
+      <div className={`gtour-dock ${phase} ${phase === 'script' || phase === 'action' ? 'open' : ''} ${dockHidden ? 'hidden' : ''}`}>
+        <button className="gtour-dock-toggle" onClick={() => setDockHidden((h) => !h)}>
+          {dockHidden ? 'Show script ▴' : 'Hide script ▾'}
+        </button>
         <div className="gtour-dock-card">
           <div className="gtour-speaker"><span>{step.actor}</span><b className="gtour-stepno">Step {index + 1} / {total}</b><small>{phase === 'action' ? `${step.screen} — demo` : `${step.screen} — ${step.action}`}</small></div>
           <p className="gtour-line" onClick={() => setTyped(activeScript)}>
