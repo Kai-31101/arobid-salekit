@@ -30,3 +30,32 @@ export const mockPartnerEmails = [
   'expo.owner@vietindustry.vn',
   'operations@foodexpo.vn',
 ] as const
+
+// The Partner's own digital infrastructure (tenant). This is the association whose
+// live portal the Portal Initialization flow links out to.
+export const partnerTenantMock = {
+  name: 'Tay Bac Sai Gon Business Association',
+  portalUrl: 'https://arobid.com/partner/en/hdn-taybacsaigon',
+  inviteUrl: 'https://arobid.com/partner/en/hdn-taybacsaigon/join',
+} as const
+
+// Member + prospect businesses on the Partner's tenant. "Not invited" rows are the
+// ones the Partner picks when inviting businesses onto the infrastructure.
+export const mockMemberBusinesses = [
+  { name: 'Woodcraft Living Co.', email: 'contact@woodcraftliving.vn', industry: 'Furniture', status: 'Not invited' },
+  { name: 'Saigon Interior Studio', email: 'hello@saigoninterior.com', industry: 'Interior Design', status: 'Not invited' },
+  { name: 'Vietnam Furniture Export', email: 'export@vnfurniture.vn', industry: 'Furniture', status: 'Not invited' },
+  { name: 'Home Living Group', email: 'procurement@homeliving.com', industry: 'Home & Garden', status: 'Not invited' },
+  { name: 'Automation Hub Vietnam', email: 'sales@automationhub.vn', industry: 'Industrial Components', status: 'Not invited' },
+  { name: 'Green Packaging JSC', email: 'info@greenpackaging.vn', industry: 'Packaging', status: 'Not invited' },
+  { name: 'Cath Kidston VN', email: 'partner@cathkidston.vn', industry: 'Consumer Goods', status: 'Member' },
+  { name: 'Rex Hotel Saigon', email: 'events@rexhotel.vn', industry: 'Business Services', status: 'Member' },
+] as const
+
+// Invitation log shown on Partner Site Management → Invitations.
+export const mockInvitationLog = [
+  { name: 'Cath Kidston VN', email: 'partner@cathkidston.vn', sent: '02/07/2026', status: 'Joined' },
+  { name: 'Rex Hotel Saigon', email: 'events@rexhotel.vn', sent: '02/07/2026', status: 'Joined' },
+  { name: 'Mekong Timber Co.', email: 'sales@mekongtimber.vn', sent: '28/06/2026', status: 'Opened' },
+  { name: 'Da Nang Ceramics', email: 'contact@dnceramics.vn', sent: '28/06/2026', status: 'Sent' },
+] as const

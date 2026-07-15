@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { furnitureExpoMock, mockPartnerEmails } from './mockData'
+import { furnitureExpoMock, mockPartnerEmails, partnerTenantMock, mockMemberBusinesses, mockInvitationLog } from './mockData'
+import { buildEmailTemplateXlsx, extractEmailsFromFile } from './xlsx'
 import { useLanguage } from './i18n'
-import { demoScriptEn } from './i18n.dict'
+import { demoScriptSteps, type DemoJourneyStep } from './demoScript'
+import { findFlow, roleDefs, type RoleFlow } from './flows'
 
 type Expo = {
   image: string
@@ -82,7 +84,21 @@ export default function App() {
     }
   }
 
-  if (pathname !== '/demo-journey' && pathname !== '/admin/expo' && pathname !== '/admin/expo/create' && pathname !== '/partner/expos' && pathname !== '/partner/operation/expos' && pathname !== '/exhibitor/invitation' && pathname !== '/visitor/invitation' && pathname !== '/exhibitor/login' && pathname !== '/exhibitor/ai-onboarding' && pathname !== '/exhibitor/general-info' && pathname !== '/user/workspace' && pathname !== '/user/workspace/expo-dashboard' && pathname !== `/user/workspace/expo-dashboard/${furnitureExpoMock.id}` && pathname !== '/tradexpo/select-booth-tier' && pathname !== '/tradexpo/expo-detail' && pathname !== '/tradexpo/select-position' && pathname !== '/tradexpo/payment-success' && pathname !== `/partner/expos/${furnitureExpoMock.id}` && pathname !== `/partner/operation/expos/${furnitureExpoMock.id}`) {
+  // Flow routes are matched by PREFIX, so they must be resolved before the
+  // exact-path guard below (which would otherwise fall through to role selection).
+  // `/demo-journey/<flowId>` runs the guided journey scoped to one role flow;
+  // `/concept/<flowId>` is the backdrop screen its narration-only steps sit on.
+  if (pathname.startsWith('/demo-journey/')) {
+    const flow = findFlow(pathname.slice('/demo-journey/'.length))
+    if (flow) return <DemoJourney flow={flow} onExit={() => navigate('/')} />
+  }
+
+  if (pathname.startsWith('/concept/')) {
+    const flow = findFlow(pathname.slice('/concept/'.length))
+    if (flow) return <ConceptScreen flow={flow} onLogoClick={goRoleSelection} />
+  }
+
+  if (pathname !== '/demo-journey' && pathname !== '/admin/expo' && pathname !== '/admin/expo/create' && pathname !== '/partner/expos' && pathname !== '/partner/operation/expos' && pathname !== '/partner/dashboard' && pathname !== '/partner/ecosystem' && pathname !== '/partner/events' && pathname !== '/partner/sponsors' && pathname !== '/partner/aro' && pathname !== '/partner/financial-reports' && pathname !== '/partner/rfq-dealroom' && pathname !== '/partner/post-expo' && pathname !== '/partner/journey' && pathname !== '/partner/site/enterprises' && pathname !== '/partner/site/invitations' && pathname !== '/exhibitor/invitation' && pathname !== '/visitor/invitation' && pathname !== '/exhibitor/login' && pathname !== '/exhibitor/ai-onboarding' && pathname !== '/exhibitor/general-info' && pathname !== '/exhibitor/rfq-hub' && pathname !== '/exhibitor/rfq-hub/detail' && pathname !== '/exhibitor/rfq-hub/quote' && pathname !== '/exhibitor/rfq-hub/sent' && pathname !== '/user/workspace' && pathname !== '/user/workspace/expo-dashboard' && pathname !== `/user/workspace/expo-dashboard/${furnitureExpoMock.id}` && pathname !== '/tradexpo/select-booth-tier' && pathname !== '/tradexpo/expo-detail' && pathname !== '/tradexpo/select-position' && pathname !== '/tradexpo/payment-success' && pathname !== `/partner/expos/${furnitureExpoMock.id}` && pathname !== `/partner/operation/expos/${furnitureExpoMock.id}`) {
     return <RoleSelection onSelect={navigate} />
   }
 
@@ -130,6 +146,22 @@ export default function App() {
     return <ExhibitorGeneralInfoPage onLogoClick={goRoleSelection} onBack={() => navigate('/exhibitor/ai-onboarding')} onSubmit={() => navigate('/exhibitor/login')} />
   }
 
+  if (pathname === '/exhibitor/rfq-hub') {
+    return <RfqHubList onLogoClick={goRoleSelection} onOpen={() => navigate('/exhibitor/rfq-hub/detail')} />
+  }
+
+  if (pathname === '/exhibitor/rfq-hub/detail') {
+    return <RfqHubDetail stage="prompt" onLogoClick={goRoleSelection} onBack={() => navigate('/exhibitor/rfq-hub')} onNext={() => navigate('/exhibitor/rfq-hub/quote')} />
+  }
+
+  if (pathname === '/exhibitor/rfq-hub/quote') {
+    return <RfqHubDetail stage="form" onLogoClick={goRoleSelection} onBack={() => navigate('/exhibitor/rfq-hub')} onNext={() => navigate('/exhibitor/rfq-hub/sent')} />
+  }
+
+  if (pathname === '/exhibitor/rfq-hub/sent') {
+    return <RfqHubDetail stage="sent" onLogoClick={goRoleSelection} onBack={() => navigate('/exhibitor/rfq-hub')} onNext={() => window.alert('Mock action: this quotation has already been sent.')} />
+  }
+
   if (pathname === '/user/workspace') {
     return <UserWorkspaceBoothConfig onLogoClick={goRoleSelection} onSave={() => navigate('/user/workspace/expo-dashboard')} />
   }
@@ -140,6 +172,35 @@ export default function App() {
 
   if (pathname === `/user/workspace/expo-dashboard/${furnitureExpoMock.id}`) {
     return <UserWorkspaceExpoDetail onLogoClick={goRoleSelection} onBack={() => navigate('/user/workspace/expo-dashboard')} />
+  }
+
+  // Partner Site Management → Enterprises Management / Invitations (tenant-level
+  // business invitation, the counterpart to the Expo-level invite flow).
+  const siteNav = (item: string) => navigate(item === 'Invitations' ? '/partner/site/invitations' : item === 'Enterprises Management' ? '/partner/site/enterprises' : '/partner/site/enterprises')
+
+  if (pathname === '/partner/dashboard') {
+    return <PartnerDashboard onLogoClick={goRoleSelection} onExpoConfig={() => navigate('/partner/expos')} onExpoOperation={() => navigate('/partner/operation/expos')} onSiteNav={siteNav} />
+  }
+
+  // Partner concept-flow pages. All share the same nav callbacks.
+  {
+    const partnerPageProps = { onLogoClick: goRoleSelection, onExpoConfig: () => navigate('/partner/expos'), onExpoOperation: () => navigate('/partner/operation/expos'), onSiteNav: siteNav }
+    if (pathname === '/partner/ecosystem') return <PartnerEcosystemPage {...partnerPageProps} />
+    if (pathname === '/partner/events') return <PartnerEventPage {...partnerPageProps} />
+    if (pathname === '/partner/sponsors') return <PartnerSponsorPage {...partnerPageProps} />
+    if (pathname === '/partner/aro') return <PartnerAroPage {...partnerPageProps} />
+    if (pathname === '/partner/financial-reports') return <PartnerFinancialPage {...partnerPageProps} />
+    if (pathname === '/partner/rfq-dealroom') return <PartnerRfqDealroomPage {...partnerPageProps} />
+    if (pathname === '/partner/post-expo') return <PartnerPostExpoPage {...partnerPageProps} />
+    if (pathname === '/partner/journey') return <PartnerJourneyPage {...partnerPageProps} />
+  }
+
+  if (pathname === '/partner/site/enterprises') {
+    return <PartnerEnterprisesPage onLogoClick={goRoleSelection} onExpoConfig={() => navigate('/partner/expos')} onExpoOperation={() => navigate('/partner/operation/expos')} onSiteNav={siteNav} />
+  }
+
+  if (pathname === '/partner/site/invitations') {
+    return <PartnerInvitationsPage onLogoClick={goRoleSelection} onExpoConfig={() => navigate('/partner/expos')} onExpoOperation={() => navigate('/partner/operation/expos')} onSiteNav={siteNav} />
   }
 
   if (pathname === '/partner/expos') {
@@ -227,18 +288,61 @@ function ExpoTemplateModal({ onClose }: { onClose: () => void }) {
   return <div className="template-modal-backdrop" role="presentation" onMouseDown={onClose}><section className="template-modal template-viewer-modal" role="dialog" aria-modal="true" aria-label="3D Expo Template Preview" onMouseDown={(event) => event.stopPropagation()}><header><div><p>3D TEMPLATE PREVIEW</p><h2>{furnitureExpoMock.templateName}</h2><span>Selected previously by Admin for this expo.</span></div><button onClick={onClose} aria-label="Close">×</button></header><iframe title="3D Expo map template" src={furnitureExpoMock.templateViewerUrl} allow="fullscreen; xr-spatial-tracking; gyroscope; accelerometer" /></section></div>
 }
 
-function InviteExhibitorModal({ onClose }: { onClose: () => void }) {
+// One modal, two scopes:
+//   'exhibitor' — invite exhibitors to an Expo (Partner → Expo Operation detail)
+//   'business'  — invite businesses onto the Partner's own digital infrastructure
+//                 (Partner Site Management → Enterprises Management)
+// Both share the Arobid / External tabs, the Excel import, the email preview and
+// batch send. Every English string in the 'exhibitor' branch is unchanged — the
+// demo highlighter matches on those exact labels.
+function InviteExhibitorModal({ onClose, variant = 'exhibitor', initialEmails, onSent }: { onClose: () => void; variant?: 'exhibitor' | 'business'; initialEmails?: string[]; onSent?: () => void }) {
+  const isBusiness = variant === 'business'
   const suppliers = ['Cath Kidston VN', 'Rex Hotel Saigon', 'Woodcraft Living Co.', 'Vietnam Furniture Export', 'Saigon Interior Studio', 'Automation Hub Vietnam']
-  const [externalEmails, setExternalEmails] = useState(['buyer@furniturehub.vn', 'procurement@homeliving.com', 'trade.partner@globalmail.com'])
-  const [inviteMode, setInviteMode] = useState<'arobid' | 'external'>('arobid')
+  const [externalEmails, setExternalEmails] = useState<string[]>(initialEmails?.length ? initialEmails : ['buyer@furniturehub.vn', 'procurement@homeliving.com', 'trade.partner@globalmail.com'])
+  // Businesses are picked on the Enterprises page, so that modal opens straight on
+  // the email list the Partner already ticked.
+  const [inviteMode, setInviteMode] = useState<'arobid' | 'external'>(isBusiness ? 'external' : 'arobid')
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
   const [emailDraft, setEmailDraft] = useState('')
   const [copied, setCopied] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [sentMessage, setSentMessage] = useState('')
+  const [importNote, setImportNote] = useState('')
   const copyInvitationLink = () => {
-    navigator.clipboard?.writeText('https://arobid.com/invite/vietnam-furniture-expo-2026')
+    navigator.clipboard?.writeText(isBusiness ? partnerTenantMock.inviteUrl : 'https://arobid.com/invite/vietnam-furniture-expo-2026')
     setCopied(true)
+  }
+  const downloadTemplate = () => {
+    const url = URL.createObjectURL(buildEmailTemplateXlsx(mockPartnerEmails))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'arobid-exhibitor-invite-template.xlsx'
+    link.click()
+    URL.revokeObjectURL(url)
+    setImportNote('Template downloaded. Fill in the Email column, then upload it back here.')
+  }
+  // Reads a real .xlsx (or .csv) — see src/xlsx.ts. Emails already in the list are
+  // skipped so re-uploading the same file is harmless.
+  const importEmailFile = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const emails = await extractEmailsFromFile(file)
+      if (!emails.length) {
+        setImportNote(`No email addresses found in ${file.name}. Check the Email column.`)
+        return
+      }
+      // Work out what's new from the current list up front, NOT inside the state
+      // updater — React runs updaters twice in StrictMode, so counting in there
+      // reports every fresh email as a duplicate on the second pass.
+      const fresh = emails.filter((email) => !externalEmails.includes(email))
+      const duplicates = emails.length - fresh.length
+      if (fresh.length) setExternalEmails([...externalEmails, ...fresh])
+      setImportNote(fresh.length
+        ? `Imported ${fresh.length} email${fresh.length === 1 ? '' : 's'} from ${file.name}${duplicates ? ` · ${duplicates} already in the list` : ''}.`
+        : `Every email in ${file.name} is already in the list.`)
+    } catch {
+      setImportNote(`Could not read ${file.name}. Upload an .xlsx or .csv file.`)
+    }
   }
   const addEmail = () => {
     const nextEmail = emailDraft.trim()
@@ -262,8 +366,10 @@ function InviteExhibitorModal({ onClose }: { onClose: () => void }) {
             <svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z" /><path d="m4 7 8 6 8-6" /></svg>
           </div>
           <div>
-            <h2>Invite Exhibitor</h2>
-            <p>{inviteMode === 'arobid' ? 'Select Arobid company profiles to invite' : 'Invite external exhibitors by email'}</p>
+            <h2>{isBusiness ? 'Invite Businesses' : 'Invite Exhibitor'}</h2>
+            <p>{inviteMode === 'arobid'
+              ? 'Select Arobid company profiles to invite'
+              : isBusiness ? 'Invite businesses to your digital infrastructure by email' : 'Invite external exhibitors by email'}</p>
           </div>
           <button onClick={onClose} aria-label="Close">×</button>
         </header>
@@ -301,19 +407,40 @@ function InviteExhibitorModal({ onClose }: { onClose: () => void }) {
             </>
           ) : (
             <div className="external-invite-panel">
+              <div className="invite-import">
+                <div className="invite-import-copy">
+                  <strong>Import from Excel</strong>
+                  <small>Download the template, fill in the Email column, then upload the file to add every recipient at once.</small>
+                </div>
+                <div className="invite-import-actions">
+                  <button className="invite-template-button" onClick={downloadTemplate}>⤓ Download Excel Template</button>
+                  {/* class contains "upload" so the demo highlighter's focus selector picks it up */}
+                  <label className="invite-upload-button">
+                    ⤒ Upload Excel Email List
+                    <input type="file" accept=".xlsx,.csv,.txt" onChange={(event) => { void importEmailFile(event.target.files?.[0]); event.target.value = '' }} />
+                  </label>
+                </div>
+              </div>
+              {importNote && <p className="invite-import-note">{importNote}</p>}
               <label>Email recipients</label>
               <div className="email-tag-input">
                 {externalEmails.map((email) => <span key={email}>{email}<button onClick={() => setExternalEmails(externalEmails.filter((item) => item !== email))}>×</button></span>)}
                 <input value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); addEmailText(emailDraft) } }} onPaste={(event) => { event.preventDefault(); addEmailText(event.clipboardData.getData('text')) }} placeholder="Paste emails or type, then press Enter..." />
               </div>
-              <p>External exhibitors will receive an invitation email with the expo registration link.</p>
+              {isBusiness
+                ? <p>Businesses will receive an invitation email with the link to join your digital infrastructure.</p>
+                : <p>External exhibitors will receive an invitation email with the expo registration link.</p>}
               {previewOpen && (
                 <div className="email-preview">
                   <strong>Invitation Email Preview</strong>
-                  <p className="email-subject">Subject: Invitation to join {furnitureExpoMock.name}</p>
+                  {/* Arobid pre-writes the email from the tenant / expo record — the
+                      Partner only reviews it, never composes it. */}
+                  <p className="email-subject">Subject: Invitation to join {isBusiness ? partnerTenantMock.name : furnitureExpoMock.name}</p>
                   <div className="email-preview-card">
-                    <h3>You're invited to join {furnitureExpoMock.name}</h3>
-                    <p>Hello, you are invited to register as an exhibitor for Vietnam Furniture Expo 2026. Click the button below to start onboarding and reserve your booth.</p>
+                    <h3>You're invited to join {isBusiness ? partnerTenantMock.name : furnitureExpoMock.name}</h3>
+                    {isBusiness
+                      ? <p>Hello, your business is invited to join the digital infrastructure of the Tay Bac Sai Gon Business Association on Arobid. Click the button below to activate your company profile, publish products, and join the association's expos.</p>
+                      : <p>Hello, you are invited to register as an exhibitor for Vietnam Furniture Expo 2026. Click the button below to start onboarding and reserve your booth.</p>}
                     <button>Join</button>
                   </div>
                   <p className="email-note">Note: Email template will be modified by Arobid based on Partner requirement.</p>
@@ -329,7 +456,7 @@ function InviteExhibitorModal({ onClose }: { onClose: () => void }) {
             <>
               <button className="copy-link" onClick={copyInvitationLink}>{copied ? '✓ Link Copied' : '🔗 Copy Invitation Link'}</button>
               <button onClick={() => setPreviewOpen(!previewOpen)}>{previewOpen ? 'Hide Email Preview' : 'Preview Invitation Email'}</button>
-              <button className="batch-send-button" onClick={() => setSentMessage(`Mock sent: ${externalEmails.length} invitation emails queued.`)}>Batch Send {externalEmails.length}</button>
+              <button className="batch-send-button" onClick={() => { setSentMessage(`Mock sent: ${externalEmails.length} invitation emails queued.`); onSent?.() }}>Batch Send {externalEmails.length}</button>
               <button onClick={onClose}>Cancel</button>
             </>
           ) : (
@@ -349,23 +476,739 @@ function ExpoHallTemplate({ name, type, selected }: { name: string; type: 'stand
   return <button className={`expo-hall-template ${type} ${selected ? 'selected' : ''}`}><div className="hall-3d"><span className="hall-sign">EXPO</span><span className="hall-stage">STAGE</span><span className="hall-entry">ENTRY</span>{Array.from({ length: type === 'grand' ? 12 : type === 'premium' ? 10 : 8 }, (_, index) => <i key={index} />)}</div><strong>{name}</strong><span>{type === 'standard' ? '200 booth layout' : type === 'premium' ? '300 booth layout' : '500 booth layout'}</span></button>
 }
 
-function PartnerSidebar({ onLogoClick, onExpoConfig, onExpoOperation }: { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void }) {
+// `activeNav` highlights any nav item by its English label (across every group and
+// the top-level items) and suppresses the default "Expo Settings" highlight — used by
+// the concept-flow pages so each lands on its own sidebar entry. `siteActiveItem` and
+// `overviewActive` remain for the Site Management / Overview pages.
+function PartnerSidebar({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav, siteActiveItem, overviewActive, activeNav }: { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav?: (item: string) => void; siteActiveItem?: string; overviewActive?: boolean; activeNav?: string }) {
   const [roleOpen, setRoleOpen] = useState(false)
-  return <aside className="partner-sidebar"><button className="partner-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /></button><div className="portal-label">Partner Portal</div><nav className="partner-nav"><div className="partner-nav-item"><span>▦</span>Overview</div><div className="partner-nav-item"><span>◌</span>Deal Room</div><PartnerNavGroup icon="♧" label="Partner Site Management" items={['Site Setting', 'Enterprises Management', 'Invitations']} /><PartnerNavGroup icon="◉" label="Expo Programs" items={['Dashboard', 'Expo Settings', 'Invitations']} activeItem="Expo Settings" /><PartnerNavGroup icon="▤" label="Bundle Management" items={['Bundle Creation', 'Bundle Pricing']} /><PartnerNavGroup icon="⊞" label="Data Center" items={['Enterprise Reports', 'Expo Reports', 'Trade Reports', 'Credit & Revenue Reports', 'Buyer Lead Reports']} /><div className="partner-nav-item"><span>▢</span>TradeCredit Wallet</div></nav><div className="partner-profile-wrap"><button className="partner-profile" onClick={() => setRoleOpen(!roleOpen)} aria-expanded={roleOpen}><span>Logo</span><div><strong>Tenant Partner Admin</strong><small>{furnitureExpoMock.ownerEmail}</small></div><b>›</b></button>{roleOpen && <div className="partner-role-menu profile-role-menu"><button onClick={onExpoConfig}><strong>Expo Config</strong><small>Configure expo setup and draft content</small></button><button onClick={onExpoOperation}><strong>Expo Operation</strong><small>Operate approved and upcoming expos</small></button></div>}</div></aside>
+  const suppressDefault = Boolean(siteActiveItem || overviewActive || activeNav)
+  const groupActive = (items: string[]) => (activeNav && items.includes(activeNav) ? activeNav : undefined)
+  const expoItems = ['Dashboard', 'Expo Settings', 'Invitations']
+  const dataItems = ['Enterprise Reports', 'Expo Reports', 'Trade Reports', 'Credit & Revenue Reports', 'Buyer Lead Reports']
+  const bundleItems = ['Bundle Creation', 'Bundle Pricing']
+  return <aside className="partner-sidebar"><button className="partner-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /></button><div className="portal-label">Partner Portal</div><nav className="partner-nav"><div className={`partner-nav-item ${overviewActive || activeNav === 'Overview' ? 'active' : ''}`}><span>▦</span>Overview</div><div className={`partner-nav-item ${activeNav === 'Deal Room' ? 'active' : ''}`}><span>◌</span>Deal Room</div><PartnerNavGroup icon="♧" label="Partner Site Management" items={['Site Setting', 'Enterprises Management', 'Invitations']} activeItem={siteActiveItem ?? groupActive(['Site Setting', 'Enterprises Management', 'Invitations'])} onSelect={onSiteNav} /><PartnerNavGroup icon="◉" label="Expo Programs" items={expoItems} activeItem={suppressDefault ? groupActive(expoItems) : 'Expo Settings'} /><PartnerNavGroup icon="▤" label="Bundle Management" items={bundleItems} activeItem={groupActive(bundleItems)} /><PartnerNavGroup icon="⊞" label="Data Center" items={dataItems} activeItem={groupActive(dataItems)} /><div className={`partner-nav-item ${activeNav === 'TradeCredit Wallet' ? 'active' : ''}`}><span>▢</span>TradeCredit Wallet</div></nav><div className="partner-profile-wrap"><button className="partner-profile" onClick={() => setRoleOpen(!roleOpen)} aria-expanded={roleOpen}><span>Logo</span><div><strong>Tenant Partner Admin</strong><small>{furnitureExpoMock.ownerEmail}</small></div><b>›</b></button>{roleOpen && <div className="partner-role-menu profile-role-menu"><button onClick={onExpoConfig}><strong>Expo Config</strong><small>Configure expo setup and draft content</small></button><button onClick={onExpoOperation}><strong>Expo Operation</strong><small>Operate approved and upcoming expos</small></button></div>}</div></aside>
 }
 
-function PartnerNavGroup({ icon, label, items, activeItem }: { icon: string; label: string; items: string[]; activeItem?: string }) {
-  return <section className="partner-nav-group"><div className="partner-nav-item parent"><span>{icon}</span>{label}<b>⌄</b></div><div className="partner-subnav">{items.map((item) => <div key={item} className={`partner-subnav-item ${item === activeItem ? 'selected' : ''}`}>{item}</div>)}</div></section>
+// Shared shell for the concept-flow pages: the Partner sidebar + topbar + main column,
+// matching the built Partner screens. Pages pass their breadcrumb, active nav item and body.
+function PartnerShell({ crumb, activeNav, onLogoClick, onExpoConfig, onExpoOperation, onSiteNav, children }: { crumb: React.ReactNode; activeNav?: string; onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav?: (item: string) => void; children: React.ReactNode }) {
+  return <div className="partner-app">
+    <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav={activeNav} />
+    <section className="partner-content">
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb">{crumb}</div><span className="partner-notification">♧<i>1</i></span></header>
+      <main className="partner-main pdash-main">{children}</main>
+    </section>
+  </div>
+}
+
+// Sub-nav entries are inert by default. Pass `onSelect` to make them real buttons —
+// used by Partner Site Management, whose Enterprises Management / Invitations pages
+// are built screens.
+function PartnerNavGroup({ icon, label, items, activeItem, onSelect }: { icon: string; label: string; items: string[]; activeItem?: string; onSelect?: (item: string) => void }) {
+  return <section className="partner-nav-group"><div className="partner-nav-item parent"><span>{icon}</span>{label}<b>⌄</b></div><div className="partner-subnav">{items.map((item) => onSelect
+    ? <button key={item} className={`partner-subnav-item ${item === activeItem ? 'selected' : ''}`} onClick={() => onSelect(item)}>{item}</button>
+    : <div key={item} className={`partner-subnav-item ${item === activeItem ? 'selected' : ''}`}>{item}</div>)}</div></section>
+}
+
+// Partner Site Management → Enterprises Management.
+// The tenant-level counterpart of the Expo invite flow: the Partner sees the member
+// businesses on their own digital infrastructure, ticks who to invite, reviews the
+// email Arobid pre-wrote from the tenant record, and sends in bulk.
+function PartnerEnterprisesPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav: (item: string) => void }) {
+  const invitable = mockMemberBusinesses.filter((business) => business.status === 'Not invited')
+  const [selected, setSelected] = useState<string[]>([])
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const toggle = (email: string) => setSelected((current) => current.includes(email) ? current.filter((item) => item !== email) : [...current, email])
+  const selectAll = () => setSelected(selected.length === invitable.length ? [] : invitable.map((business) => business.email))
+  return <div className="partner-app">
+    <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} siteActiveItem="Enterprises Management" />
+    <section className="partner-content">
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Partner Site Management</span><b>›</b><strong>Enterprises Management</strong></div><span className="partner-notification">♧<i>1</i></span></header>
+      <main className="partner-main">
+        <div className="detail-heading">
+          <div><h1>Enterprises Management</h1><p>Businesses on the digital infrastructure of {partnerTenantMock.name}.</p></div>
+          {/* Count kept as a separate text node (same convention as "Batch Send {n}")
+              so the label itself stays a single translatable string. */}
+          <button className="invite-exhibitor-button" disabled={!selected.length} onClick={() => setInviteOpen(true)}>Invite Businesses {selected.length}</button>
+        </div>
+        <div className="partner-filters">
+          <label>⌕<input placeholder="Business name or email..." /></label>
+          <select defaultValue="All Industries"><option>All Industries</option><option>Furniture</option><option>Home &amp; Garden</option><option>Packaging</option></select>
+          <select defaultValue="All Status"><option>All Status</option><option>Member</option><option>Not invited</option></select>
+        </div>
+        <div className="invite-summary enterprise-summary">
+          <span>Total {mockMemberBusinesses.length} businesses · {selected.length} selected</span>
+          <button onClick={selectAll}>{selected.length === invitable.length ? 'Clear all' : 'Select all'}</button>
+        </div>
+        <div className="enterprise-table-wrap"><table className="enterprise-table">
+          <thead><tr><th /><th>Business</th><th>Email</th><th>Industry</th><th>Status</th></tr></thead>
+          <tbody>
+            {mockMemberBusinesses.map((business) => {
+              const isMember = business.status === 'Member'
+              const isChecked = selected.includes(business.email)
+              return <tr key={business.email} className={isChecked ? 'row-selected' : ''}>
+                <td><input type="checkbox" checked={isChecked} disabled={isMember} onChange={() => toggle(business.email)} aria-label={`Select ${business.name}`} /></td>
+                <td><div className="enterprise-name"><img src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(business.name)}&backgroundColor=fff1e8,e8f8f2,eef3f8`} alt="" /><strong>{business.name}</strong></div></td>
+                <td className="enterprise-email">{business.email}</td>
+                <td>{business.industry}</td>
+                <td><span className={isMember ? 'member-badge' : 'notinvited-badge'}>{business.status}</span></td>
+              </tr>
+            })}
+          </tbody>
+        </table></div>
+      </main>
+    </section>
+    {inviteOpen && <InviteExhibitorModal variant="business" initialEmails={selected} onSent={() => onSiteNav('Invitations')} onClose={() => setInviteOpen(false)} />}
+  </div>
+}
+
+// Partner Site Management → Invitations. Where the batch send lands: the log of every
+// invitation sent onto the tenant, with its delivery status.
+function PartnerInvitationsPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav: (item: string) => void }) {
+  const joined = mockInvitationLog.filter((row) => row.status === 'Joined').length
+  const opened = mockInvitationLog.filter((row) => row.status === 'Opened').length
+  return <div className="partner-app">
+    <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} siteActiveItem="Invitations" />
+    <section className="partner-content">
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Partner Site Management</span><b>›</b><strong>Invitations</strong></div><span className="partner-notification">♧<i>1</i></span></header>
+      <main className="partner-main">
+        <div className="detail-heading">
+          <div><h1>Invitations</h1><p>Every invitation sent to join {partnerTenantMock.name}.</p></div>
+          <button className="invite-exhibitor-button" onClick={() => onSiteNav('Enterprises Management')}>New Invitation</button>
+        </div>
+        <div className="invitation-stats">
+          <div><b>Sent</b><strong>{mockInvitationLog.length}</strong></div>
+          <div><b>Opened</b><strong>{opened}</strong></div>
+          <div><b>Joined</b><strong>{joined}</strong></div>
+        </div>
+        <div className="enterprise-table-wrap"><table className="enterprise-table">
+          <thead><tr><th>Business</th><th>Email</th><th>Sent</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {mockInvitationLog.map((row) => (
+              <tr key={row.email}>
+                <td><div className="enterprise-name"><img src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(row.name)}&backgroundColor=fff1e8,e8f8f2,eef3f8`} alt="" /><strong>{row.name}</strong></div></td>
+                <td className="enterprise-email">{row.email}</td>
+                <td>{row.sent}</td>
+                <td><span className={`invite-status ${row.status.toLowerCase()}`}>{row.status}</span></td>
+                <td><button className="resend-button" onClick={() => window.alert('Mock action: the invitation email would be sent again.')}>Resend</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      </main>
+    </section>
+  </div>
+}
+
+// Partner Portal → Overview. A recreation of the live "Partner Analytics Command
+// Center" dashboard (arobid-portal-prototype-lite.vercel.app/partner), rebuilt with
+// the demo's furniture-expo sample data. Reached as the built screen behind step 3
+// of the partner-portal-init journey: when the tenant homepage goes live, the demo
+// switches from the concept card into this real portal while the public site opens
+// in a parallel tab.
+function PartnerDashboard({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav: (item: string) => void }) {
+  const ops = [
+    { label: 'Visitor Traffic', value: '12,480', delta: '+18.2%', icon: '◉' },
+    { label: 'Activated Members', value: '128', delta: '+11 this week', icon: '❏' },
+    { label: 'Sold Booth', value: '237', delta: '+24 vs prev', icon: '◧' },
+    { label: 'Deal Room', value: '54', delta: '+9 active', icon: '◍' },
+  ]
+  const funnel = [
+    { label: 'Invited', value: 320, pct: 100 },
+    { label: 'Verified / Seller onboarding', value: 176, pct: 55 },
+    { label: 'Profile completed > 80%', value: 92, pct: 29 },
+  ]
+  const sold = 237
+  const unsold = 71
+  const soldPct = Math.round((sold / (sold + unsold)) * 100)
+  const tiers = [
+    { label: 'Premium', value: 24, color: '#7857d5' },
+    { label: 'Pro', value: 88, color: '#ff7a35' },
+    { label: 'Basic', value: 125, color: '#2f9e8f' },
+  ]
+  const tierMax = Math.max(...tiers.map((tier) => tier.value))
+  const expoRows = [
+    { name: 'Vietnam Furniture Expo 2026', when: '12 Oct → 16 Oct 2026', status: 'Live', total: 200, sold: 168, unsold: 32, util: 84 },
+    { name: 'HCMC Home & Living Showcase', when: 'Schedule to be announced', status: 'Pending Review', total: 108, sold: 69, unsold: 39, util: 64 },
+  ]
+  // A tiny inline area sparkline, no chart library.
+  const spark = (points: number[], stroke: string) => {
+    const max = Math.max(...points)
+    const min = Math.min(...points)
+    const span = max - min || 1
+    const coords = points.map((point, i) => [(i / (points.length - 1)) * 100, 32 - ((point - min) / span) * 28])
+    const line = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+    const area = `${line} L100,32 L0,32 Z`
+    return (
+      <svg className="pdash-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+        <path d={area} fill={stroke} opacity="0.12" />
+        <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  const donutC = 2 * Math.PI * 42
+
+  return (
+    <div className="partner-app">
+      <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} overviewActive />
+      <section className="partner-content">
+        <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><strong>Dashboard</strong></div><span className="partner-notification">♧<i>1</i></span></header>
+        <main className="partner-main pdash-main">
+          <div className="pdash-hero">
+            <div>
+              <h1>Partner Analytics Command Center</h1>
+              <p>Follow capacity, activation, revenue, and live engagement signals across assigned Expo Programs.</p>
+            </div>
+            <span className="pdash-hero-gauge" aria-hidden="true">◔</span>
+          </div>
+
+          <section className="pdash-section">
+            <div className="pdash-section-head">
+              <h2>Operations Summary</h2>
+              <div className="pdash-range">{['1D', '3D', '7D', '15D', '30D', 'Custom'].map((range) => <span key={range} className={range === '7D' ? 'on' : ''}>{range}</span>)}</div>
+            </div>
+            <div className="pdash-kpis">
+              {ops.map((op) => (
+                <div key={op.label} className="pdash-kpi">
+                  <div className="pdash-kpi-top"><span>{op.label}</span><i>{op.icon}</i></div>
+                  <strong>{op.value}</strong>
+                  <small>{op.delta}</small>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="pdash-section">
+            <div className="pdash-section-head">
+              <div><h2>Partner Activation Funnel</h2><p className="pdash-sub">Sequential enterprise drop-off from invitation to verified onboarding and profile completion.</p></div>
+              <div className="pdash-range">{['7D', '30D', '90D', 'Custom'].map((range) => <span key={range} className={range === '30D' ? 'on' : ''}>{range}</span>)}</div>
+            </div>
+            <div className="pdash-card">
+              <div className="pdash-card-head"><strong>Enterprise Activation Drop-Off</strong><small>Invitation → verified onboarding → eProfile completion</small></div>
+              <div className="pdash-funnel">
+                {funnel.map((stage) => (
+                  <div key={stage.label} className="pdash-funnel-row">
+                    <span className="pdash-funnel-label">{stage.label}</span>
+                    <span className="pdash-funnel-track"><i style={{ width: `${stage.pct}%` }} /></span>
+                    <span className="pdash-funnel-value">{stage.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="pdash-section">
+            <div className="pdash-section-head"><h2>Expo and Inventory</h2></div>
+            <div className="pdash-inventory">
+              <div className="pdash-card">
+                <div className="pdash-card-head"><strong>Booth sold vs unsold</strong><small>Total booth inventory status</small></div>
+                <div className="pdash-donut-wrap">
+                  <svg className="pdash-donut" viewBox="0 0 100 100" aria-label={`${soldPct}% of booths sold`}>
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#eef1f6" strokeWidth="12" />
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#ff7a35" strokeWidth="12" strokeLinecap="round"
+                      strokeDasharray={`${(soldPct / 100) * donutC} ${donutC}`} transform="rotate(-90 50 50)" />
+                    <text x="50" y="47" className="pdash-donut-num">{soldPct}%</text>
+                    <text x="50" y="61" className="pdash-donut-cap">sold</text>
+                  </svg>
+                  <ul className="pdash-legend">
+                    <li><i style={{ background: '#ff7a35' }} />Sold booths<b>{sold}</b></li>
+                    <li><i style={{ background: '#e3e8f0' }} />Unsold booths<b>{unsold}</b></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="pdash-card">
+                <div className="pdash-card-head"><strong>Purchased booths by tier</strong><small>All-time purchased booth count</small></div>
+                <div className="pdash-tiers">
+                  {tiers.map((tier) => (
+                    <div key={tier.label} className="pdash-tier-row">
+                      <span className="pdash-tier-label">{tier.label}</span>
+                      <span className="pdash-tier-track"><i style={{ width: `${(tier.value / tierMax) * 100}%`, background: tier.color }} /></span>
+                      <span className="pdash-tier-value">{tier.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="enterprise-table-wrap pdash-table-wrap"><table className="enterprise-table">
+              <thead><tr><th>Expo Program</th><th>Status</th><th>Total booth</th><th>Sold</th><th>Unsold</th><th>Utilization</th></tr></thead>
+              <tbody>
+                {expoRows.map((row) => (
+                  <tr key={row.name}>
+                    <td><div className="pdash-expo-name"><strong>{row.name}</strong><small>{row.when}</small></div></td>
+                    <td><span className={row.status === 'Live' ? 'upcoming-status' : 'pending-status'}>{row.status}</span></td>
+                    <td>{row.total}</td>
+                    <td>{row.sold}</td>
+                    <td>{row.unsold}</td>
+                    <td>
+                      <div className="pdash-util"><span className="pdash-util-track"><i style={{ width: `${row.util}%` }} /></span><b>{row.util}%</b></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
+          </section>
+
+          <section className="pdash-section">
+            <div className="pdash-section-head"><h2>Trade Activity</h2></div>
+            <div className="pdash-trade">
+              <div className="pdash-card pdash-trade-card">
+                <div className="pdash-card-head"><strong>Deal Contexts Trend</strong><small>Last 6 months</small></div>
+                <div className="pdash-trade-num">124<span>Deal Contexts</span></div>
+                {spark([42, 55, 48, 70, 88, 124], '#ff7a35')}
+              </div>
+              <div className="pdash-card pdash-trade-card">
+                <div className="pdash-card-head"><strong>TradeCredits Allocated</strong><small>Last 6 months</small></div>
+                <div className="pdash-trade-num">30.8K<span>allocated credits</span></div>
+                <ul className="pdash-legend pdash-credit-legend">
+                  <li><i style={{ background: '#2f9e8f' }} />Balance<b>12.4K</b></li>
+                  <li><i style={{ background: '#c8d2df' }} />Expired<b>3.1K</b></li>
+                  <li><i style={{ background: '#ff7a35' }} />Used<b>15.3K</b></li>
+                </ul>
+              </div>
+              <div className="pdash-card pdash-trade-card">
+                <div className="pdash-card-head"><strong>RFQ Received</strong><small>Last 6 months</small></div>
+                <div className="pdash-trade-num">396<span>received RFQs</span></div>
+                {spark([38, 44, 61, 52, 79, 96], '#7857d5')}
+              </div>
+            </div>
+          </section>
+        </main>
+      </section>
+    </div>
+  )
+}
+
+// ============================================================================
+// Partner Portal concept-flow pages. These are the screens for the Partner flows
+// that used to narrate over the generic ConceptScreen. Static mock data on the
+// demo's furniture-expo theme, built on the same PartnerShell / card / table
+// patterns as the other Partner screens. Each highlightable block carries an
+// English aria-label (via `focus-card`) so the guided journey glows it in both
+// languages.
+// ============================================================================
+
+type PartnerPageProps = { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav: (item: string) => void }
+
+// Compact KPI tile row, reused across the report pages.
+function StatTiles({ items }: { items: { label: string; value: string; sub?: string; icon?: string }[] }) {
+  return <div className="pdash-kpis">{items.map((it) => (
+    <div key={it.label} className="pdash-kpi"><div className="pdash-kpi-top"><span>{it.label}</span>{it.icon && <i>{it.icon}</i>}</div><strong>{it.value}</strong>{it.sub && <small>{it.sub}</small>}</div>
+  ))}</div>
+}
+
+// Labeled horizontal bars (booth tiers, revenue per Expo, RFQ per Expo, ...).
+function MiniBars({ rows, labelWidth = 92 }: { rows: { label: string; value: number; display?: string; color?: string }[]; labelWidth?: number }) {
+  const max = Math.max(...rows.map((row) => row.value)) || 1
+  return <div className="pdash-tiers">{rows.map((row) => (
+    <div key={row.label} className="pdash-tier-row" style={{ gridTemplateColumns: `${labelWidth}px 1fr 64px` }}>
+      <span className="pdash-tier-label">{row.label}</span>
+      <span className="pdash-tier-track"><i style={{ width: `${(row.value / max) * 100}%`, background: row.color || '#ff7a35' }} /></span>
+      <span className="pdash-tier-value">{row.display ?? String(row.value)}</span>
+    </div>
+  ))}</div>
+}
+
+const ECOSYSTEM_PRODUCTS = [
+  { key: 'Marketplace', icon: '▤', title: 'Marketplace', desc: 'Publish products once and get found by buyers year-round, independent of any single event.' },
+  { key: 'TradeXpo', icon: '◫', title: 'TradeXpo', desc: 'Open a digital Expo, rent 3D booths, and let visitors browse and send RFQs inside it.' },
+  { key: 'Buyer Find and Match', icon: '◎', title: 'Buyer Find & Match', desc: 'Pair buyer demand with the right suppliers — one RFQ becomes several competing quotations.' },
+  { key: 'ARO AI assistant', icon: '✦', title: 'ARO AI Assistant', desc: 'The AI layer across all of it: onboarding, product recommendations, buyer answers and metric summaries.' },
+]
+
+function PartnerEcosystemPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Overview" crumb={<><span>Overview</span><b>›</b><strong>Arobid Ecosystem</strong></>}>
+    <div className="detail-heading"><div><h1>Arobid Ecosystem</h1><p>Four products, one unified B2B trade infrastructure.</p></div></div>
+    <div className="eco-grid">{ECOSYSTEM_PRODUCTS.map((product) => (
+      <article key={product.key} className="eco-card focus-card" aria-label={product.key}>
+        <span className="eco-icon">{product.icon}</span>
+        <strong>{product.title}</strong>
+        <p>{product.desc}</p>
+      </article>
+    ))}</div>
+  </PartnerShell>
+}
+
+const EXPO_EVENTS = [
+  { time: '12 Oct · 09:00', name: 'Opening Ceremony', type: 'Ceremony', where: 'Main Hall' },
+  { time: '12 Oct · 11:00', name: 'Furniture Sourcing Seminar', type: 'Seminar', where: 'Room A' },
+  { time: '13 Oct · 14:00', name: 'B2B Matchmaking Session', type: 'Matchmaking', where: 'Deal Zone' },
+  { time: '14 Oct · 10:00', name: 'Sustainable Materials Panel', type: 'Panel', where: 'Room B' },
+]
+const EVENT_SPEAKERS = [
+  { name: 'Le Minh Quan', role: 'CEO, Woodcraft Living', topic: 'Opening keynote' },
+  { name: 'Tran Thu Ha', role: 'Head of Design, Saigon Interior', topic: 'Sustainable materials' },
+  { name: 'Nguyen Van Long', role: 'Export Director, VN Furniture', topic: 'B2B matchmaking' },
+]
+
+function PartnerEventPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Dashboard" crumb={<><span>Expo Programs</span><b>›</b><strong>Event Management</strong></>}>
+    <div className="detail-heading"><div><h1>Event Management</h1><p>Events inside {furnitureExpoMock.name}.</p></div></div>
+    <div className="pdash-inventory">
+      <div className="pdash-card focus-card" aria-label="Event schedule">
+        <div className="pdash-card-head"><strong>Event schedule</strong><small>Seminars, ceremonies and B2B matchmaking</small></div>
+        <div className="enterprise-table-wrap"><table className="enterprise-table">
+          <thead><tr><th>Time</th><th>Event</th><th>Type</th><th>Location</th></tr></thead>
+          <tbody>{EXPO_EVENTS.map((event) => <tr key={event.name}><td>{event.time}</td><td><strong>{event.name}</strong></td><td>{event.type}</td><td>{event.where}</td></tr>)}</tbody>
+        </table></div>
+      </div>
+      <div className="pdash-card focus-card" aria-label="Speakers and participants">
+        <div className="pdash-card-head"><strong>Speakers and participants</strong><small>Linked to each event</small></div>
+        <ul className="people-list">{EVENT_SPEAKERS.map((person) => (
+          <li key={person.name}><span className="people-avatar">{person.name.split(' ').map((word) => word[0]).slice(0, 2).join('')}</span><div><strong>{person.name}</strong><small>{person.role}</small></div><span className="people-topic">{person.topic}</span></li>
+        ))}</ul>
+      </div>
+    </div>
+  </PartnerShell>
+}
+
+const SPONSORS = [
+  { name: 'Sai Gon An Thai', tier: 'Platinum', amount: '850M ₫', status: 'Paid' },
+  { name: 'Dong Tam Group', tier: 'Gold', amount: '480M ₫', status: 'Paid' },
+  { name: 'Rex Hotel Saigon', tier: 'Silver', amount: '190M ₫', status: 'Pending' },
+]
+const SPONSOR_PACKAGES = [
+  { tier: 'Platinum', price: '850M ₫', perks: ['Logo on 3D Expo entrance', 'Premium booth', '2 speaking slots', 'Homepage banner'] },
+  { tier: 'Gold', price: '480M ₫', perks: ['Logo in hall', 'Priority booth', '1 speaking slot'] },
+  { tier: 'Silver', price: '190M ₫', perks: ['Logo in sponsor list', 'Standard booth'] },
+]
+
+function PartnerSponsorPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Dashboard" crumb={<><span>Expo Programs</span><b>›</b><strong>Sponsor Management</strong></>}>
+    <div className="detail-heading"><div><h1>Sponsor Management</h1><p>Sponsors and sponsorship packages for {furnitureExpoMock.name}.</p></div></div>
+    <div className="pdash-card focus-card" aria-label="Sponsor list">
+      <div className="pdash-card-head"><strong>Sponsor list</strong><small>Sponsorship tier and payment status</small></div>
+      <div className="enterprise-table-wrap"><table className="enterprise-table">
+        <thead><tr><th>Sponsor</th><th>Tier</th><th>Amount</th><th>Payment</th></tr></thead>
+        <tbody>{SPONSORS.map((sponsor) => <tr key={sponsor.name}><td><strong>{sponsor.name}</strong></td><td>{sponsor.tier}</td><td>{sponsor.amount}</td><td><span className={sponsor.status === 'Paid' ? 'invite-status joined' : 'pending-status'}>{sponsor.status}</span></td></tr>)}</tbody>
+      </table></div>
+    </div>
+    <div className="pdash-section-head" style={{ marginTop: 24 }}><h2>Sponsorship packages</h2></div>
+    <div className="eco-grid pkg-grid focus-card" aria-label="Sponsorship packages">{SPONSOR_PACKAGES.map((pkg) => (
+      <article key={pkg.tier} className="pkg-card"><div className="pkg-head"><strong>{pkg.tier}</strong><b>{pkg.price}</b></div><ul>{pkg.perks.map((perk) => <li key={perk}>{perk}</li>)}</ul></article>
+    ))}</div>
+  </PartnerShell>
+}
+
+function PartnerAroPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="ARO AI" crumb={<><span>Overview</span><b>›</b><strong>ARO AI</strong></>}>
+    <div className="detail-heading"><div><h1>ARO AI Assistant</h1><p>Ask about your tenant in plain language — ARO answers from live data.</p></div></div>
+    <div className="aro-chat">
+      <div className="aro-msg aro-user"><p>Which Expo is selling booths best this quarter?</p></div>
+      <div className="aro-msg aro-bot focus-card" aria-label="ARO answers from live data">
+        <span className="aro-badge">ARO</span>
+        <p><strong>Vietnam Furniture Expo 2026</strong> leads with <b>168 / 200</b> booths sold (84% utilization), ahead of HCMC Home &amp; Living at 64%. Premium tier is 80% sold.</p>
+        <div className="aro-sources"><span>◧ Expo Inventory</span><span>◔ Updated today</span></div>
+      </div>
+      <div className="aro-input focus-card" aria-label="Ask ARO a question">
+        <input placeholder="Ask ARO about your tenant..." />
+        <button aria-label="Send">➤</button>
+      </div>
+    </div>
+  </PartnerShell>
+}
+
+const SETTLEMENTS = [
+  { period: 'Jun 2026', gross: '320M ₫', fee: '32M ₫', payout: '288M ₫', status: 'Paid' },
+  { period: 'Jul 2026', gross: '240M ₫', fee: '24M ₫', payout: '216M ₫', status: 'Processing' },
+]
+
+function PartnerFinancialPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Credit & Revenue Reports" crumb={<><span>Data Center</span><b>›</b><strong>Financial Reports</strong></>}>
+    <div className="detail-heading"><div><h1>Financial Reports</h1><p>Revenue and settlement across your Expo Programs.</p></div></div>
+    <StatTiles items={[
+      { label: 'Total Revenue', value: '720M ₫', sub: '+14.6% vs prev', icon: '◈' },
+      { label: 'Booth Sales', value: '461M ₫', sub: '64% of revenue', icon: '◧' },
+      { label: 'Sponsorships', value: '187M ₫', sub: '26% of revenue', icon: '✦' },
+      { label: 'Add-on Services', value: '72M ₫', sub: '10% of revenue', icon: '▤' },
+    ]} />
+    <div className="pdash-inventory" style={{ marginTop: 16 }}>
+      <div className="pdash-card focus-card" aria-label="Revenue by Expo">
+        <div className="pdash-card-head"><strong>Revenue by Expo</strong><small>Booth, sponsorship and add-on services</small></div>
+        <MiniBars labelWidth={160} rows={[
+          { label: 'Vietnam Furniture Expo 2026', value: 470, display: '470M ₫', color: '#ff7a35' },
+          { label: 'HCMC Home & Living', value: 250, display: '250M ₫', color: '#7857d5' },
+        ]} />
+      </div>
+      <div className="pdash-card focus-card" aria-label="Settlement and payouts">
+        <div className="pdash-card-head"><strong>Settlement and payouts</strong><small>What Arobid retains vs the Partner receives</small></div>
+        <div className="enterprise-table-wrap"><table className="enterprise-table">
+          <thead><tr><th>Period</th><th>Gross</th><th>Arobid fee</th><th>Partner payout</th><th>Status</th></tr></thead>
+          <tbody>{SETTLEMENTS.map((row) => <tr key={row.period}><td>{row.period}</td><td>{row.gross}</td><td>{row.fee}</td><td><strong>{row.payout}</strong></td><td><span className={row.status === 'Paid' ? 'invite-status joined' : 'invite-status opened'}>{row.status}</span></td></tr>)}</tbody>
+        </table></div>
+      </div>
+    </div>
+  </PartnerShell>
+}
+
+const DEALROOM_CONVERSATIONS = [
+  { buyer: 'Home Living Group', exhibitor: 'Woodcraft Living', last: 'Sent a revised quotation', status: 'Active' },
+  { buyer: 'FurnitureHub VN', exhibitor: 'Saigon Interior', last: 'Awaiting buyer reply', status: 'Waiting' },
+  { buyer: 'Global Trade Partner', exhibitor: 'VN Furniture Export', last: 'Deal confirmed', status: 'Closed' },
+]
+
+function PartnerRfqDealroomPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Deal Room" crumb={<><span>Deal Room</span><b>›</b><strong>RFQ &amp; Deal Room</strong></>}>
+    <div className="detail-heading"><div><h1>RFQ &amp; Deal Room</h1><p>Buyer demand and live conversations across your Expos.</p></div></div>
+    <StatTiles items={[
+      { label: 'RFQs Received', value: '396', sub: '+62 this month', icon: '▤' },
+      { label: 'Quotations Sent', value: '254', sub: '64% of RFQs', icon: '◫' },
+      { label: 'Open Deal Rooms', value: '38', sub: '12 need follow-up', icon: '◍' },
+      { label: 'Response Rate', value: '71%', sub: '+5% vs prev', icon: '◔' },
+    ]} />
+    <div className="pdash-inventory" style={{ marginTop: 16 }}>
+      <div className="pdash-card focus-card" aria-label="RFQ volume per Expo">
+        <div className="pdash-card-head"><strong>RFQ volume per Expo</strong><small>The most direct measure of value delivered</small></div>
+        <MiniBars labelWidth={160} rows={[
+          { label: 'Vietnam Furniture Expo 2026', value: 268, color: '#ff7a35' },
+          { label: 'HCMC Home & Living', value: 128, color: '#2f9e8f' },
+        ]} />
+      </div>
+      <div className="pdash-card focus-card" aria-label="Deal Room conversations">
+        <div className="pdash-card-head"><strong>Deal Room conversations</strong><small>Open threads between buyers and exhibitors</small></div>
+        <ul className="people-list">{DEALROOM_CONVERSATIONS.map((conv) => (
+          <li key={conv.buyer}><span className="people-avatar">{conv.buyer[0]}</span><div><strong>{conv.buyer} ↔ {conv.exhibitor}</strong><small>{conv.last}</small></div><span className={`invite-status ${conv.status === 'Active' ? 'joined' : conv.status === 'Waiting' ? 'opened' : 'sent'}`}>{conv.status}</span></li>
+        ))}</ul>
+      </div>
+    </div>
+  </PartnerShell>
+}
+
+function PartnerPostExpoPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Expo Reports" crumb={<><span>Expo Programs</span><b>›</b><strong>Post-Expo Reports</strong></>}>
+    <div className="detail-heading"><div><h1>Post-Expo Reports</h1><p>Closed Expo · Vietnam Furniture Expo 2025 <span className="draft-status">Archived</span></p></div></div>
+    <div className="pdash-card focus-card" aria-label="Post-Expo summary">
+      <div className="pdash-card-head"><strong>Post-Expo summary</strong><small>Auto-generated when the Expo closed</small></div>
+      <StatTiles items={[
+        { label: 'Exhibitors', value: '86', icon: '◧' },
+        { label: 'Visitors', value: '12,480', icon: '◉' },
+        { label: 'RFQs Generated', value: '396', icon: '▤' },
+        { label: 'Est. Deal Value', value: '850M ₫', icon: '◈' },
+      ]} />
+    </div>
+    <div className="pdash-card focus-card export-card" aria-label="Export the report" style={{ marginTop: 16 }}>
+      <div><strong>Export the report</strong><small>ROI evidence for sponsors and trade associations — the pitch for the next Expo edition.</small></div>
+      <button className="invite-exhibitor-button" onClick={() => window.alert('Mock action: the post-Expo report would download as PDF.')}>Export Report (PDF)</button>
+    </div>
+  </PartnerShell>
+}
+
+const JOURNEY_STEPS = [
+  { key: 'Onboard the tenant', n: 1, title: 'Onboard the tenant', desc: 'Receive a dedicated tenant and brand it.' },
+  { key: 'Grow the member base', n: 2, title: 'Grow the member base', desc: 'Invite businesses onto the tenant and grow the community.' },
+  { key: 'Run Expos', n: 3, title: 'Run Expos', desc: 'Open Expos, sell booths, invite exhibitors and visitors.' },
+  { key: 'Monetise and report', n: 4, title: 'Monetise & report', desc: 'Earn from booths and sponsorships, then report the value.' },
+]
+
+function PartnerJourneyPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Overview" crumb={<><span>Overview</span><b>›</b><strong>Partner Journey</strong></>}>
+    <div className="detail-heading"><div><h1>Partner Journey on Arobid</h1><p>The flow of work from onboarding to monetisation.</p></div></div>
+    <div className="journey-flow">{JOURNEY_STEPS.map((step, i) => (
+      <div key={step.key} className="journey-node-wrap">
+        <div className="journey-card focus-card" aria-label={step.key}>
+          <span className="journey-num">{step.n}</span>
+          <strong>{step.title}</strong>
+          <p>{step.desc}</p>
+        </div>
+        {i < JOURNEY_STEPS.length - 1 && <span className="journey-arrow" aria-hidden="true">→</span>}
+      </div>
+    ))}</div>
+  </PartnerShell>
+}
+
+// ============================================================================
+// RFQ Hub — the Seller/Exhibitor "Submit quotations" flow, built from the Figma
+// "Seller Workspace - Submit quotations" board. One list screen (My Quotations)
+// plus one detail screen whose right panel has three states: a send prompt, the
+// quotation form, and the sent confirmation. Static furniture-expo mock data.
+// ============================================================================
+
+type RfqStage = 'prompt' | 'form' | 'sent'
+
+const RFQ_DETAIL = {
+  title: 'Saigon Wood White Oak Wood 2F (20mm White Oak)',
+  image: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=320&q=80',
+  shipTo: 'Viet Nam', quotations: 3, date: '18/09/2025',
+  desc: 'We are looking for White oak wood (20mm white oak) suitable for furniture and interior applications. The material should have a thickness of 20mm, kiln-dried to a moisture content of 8–12%, and feature a consistent natural white oak grain with minimal knots or defects. Preferred specifications include smooth, sanded surfaces ready for finishing.',
+  targetPrice: 'USD 10.00', quantity: '1000', unit: 'units', destination: 'Viet Nam',
+  attachment: { name: 'White_oak_2F(20mm).pdf', size: '2.4MB' },
+}
+
+const RFQ_LIST = [
+  { title: 'Wood Plank Section (A-36)', image: 'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=200&q=80', qty: '10 units', shipTo: 'Viet Nam', quotations: 3, desc: 'We are looking for White oak wood (20mm white oak) suitable for furniture and interior applications...', hoursLeft: '9 hour left', status: 'OPEN', date: '18/09/2025', sent: true },
+  { title: 'Modern Kitchen Cabinet order (50 sets)', image: 'https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=200&q=80', qty: '50 sets', shipTo: 'Viet Nam', quotations: 0, desc: 'Sourcing modern kitchen cabinets in melamine finish for a residential project. Need consistent color and hardware...', hoursLeft: '9 hour left', status: 'OPEN', date: '18/09/2025', sent: false },
+  { title: 'Wardrobe Sliding Door System (200 sets)', image: 'https://images.unsplash.com/photo-1618220048045-10a6dbdf83e0?auto=format&fit=crop&w=200&q=80', qty: '200 sets', shipTo: 'Viet Nam', quotations: 0, desc: 'Looking for aluminium sliding door systems for wardrobes, soft-close, with matte finish tracks...', hoursLeft: '9 hour left', status: 'OPEN', date: '18/09/2025', sent: false },
+  { title: 'Premium Melamine Board bulk order', image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=200&q=80', qty: '5000 sheets', shipTo: 'Viet Nam', quotations: 3, desc: 'Bulk order of premium melamine boards, 18mm, various wood-grain patterns for furniture manufacturing...', hoursLeft: '9 hour left', status: 'OPEN', date: '18/09/2025', sent: true },
+  { title: 'Decorative Laminate Surface (bulk)', image: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=200&q=80', qty: '3000 sqm', shipTo: 'Viet Nam', quotations: 0, desc: 'Decorative laminate surfaces for interior fit-out. Need scratch-resistant, consistent tone across batches...', hoursLeft: '9 hour left', status: 'OPEN', date: '18/09/2025', sent: false },
+]
+
+function RfqHubSidebar({ onLogoClick }: { onLogoClick: () => void }) {
+  return (
+    <aside className="rfq-sidebar">
+      <div className="rfq-brand"><button className="logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo.svg" alt="arobid.com" /></button><span className="rfq-collapse">«</span></div>
+      <nav className="rfq-nav">
+        <div className="rfq-nav-item"><span>🏷</span>RFQHub</div>
+        <RfqNavGroup icon="🌐" label="TradeXpo" items={['Entry link', 'My expos', 'Dashboard', 'Booth Config', 'My purchase']} />
+        <div className="rfq-nav-item"><span>💬</span>Deal Room (Chat)</div>
+        <RfqNavGroup icon="🏢" label="Seller" items={['Company Profile', 'Product Management', 'My RFQs']} />
+        <RfqNavGroup icon="🛒" label="Buyer" items={['My RFQs']} active="My RFQs" />
+      </nav>
+    </aside>
+  )
+}
+
+function RfqNavGroup({ icon, label, items, active }: { icon: string; label: string; items: string[]; active?: string }) {
+  return <section className="rfq-nav-group"><div className="rfq-nav-item parent"><span>{icon}</span>{label}<b>⌄</b></div><div className="rfq-subnav">{items.map((item) => <div key={item} className={`rfq-subnav-item ${item === active ? 'active' : ''}`}><i>•</i>{item}</div>)}</div></section>
+}
+
+function RfqHubShell({ onLogoClick, children }: { onLogoClick: () => void; children: React.ReactNode }) {
+  return (
+    <div className="rfq-app">
+      <RfqHubSidebar onLogoClick={onLogoClick} />
+      <section className="rfq-content">
+        <header className="rfq-topbar">
+          <strong>RFQ Hubs</strong>
+          <div className="rfq-topbar-right">
+            <span className="rfq-ico">💬<i>8</i></span>
+            <span className="rfq-ico">🔔<i>24</i></span>
+            <div className="rfq-account"><span className="rfq-avatar">JD</span><div><strong>John Doe</strong><small>arobid@info.com</small></div></div>
+          </div>
+        </header>
+        <main className="rfq-main">
+          <div className="rfq-arcs" aria-hidden="true" />
+          {children}
+        </main>
+      </section>
+    </div>
+  )
+}
+
+function RfqCard({ rfq, onSend }: { rfq: typeof RFQ_LIST[number]; onSend: () => void }) {
+  return (
+    <article className="rfq-card" onClick={onSend} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && onSend()}>
+      <img src={rfq.image} alt="" />
+      <div className="rfq-card-body">
+        {rfq.sent && <span className="rfq-sent-badge"><i>✓</i> Quotations sent</span>}
+        <h3>{rfq.title}</h3>
+        <div className="rfq-card-meta"><b>QTY:</b> {rfq.qty}<span className="rfq-dot">◉</span><b>Ship to:</b> {rfq.shipTo}{rfq.quotations > 0 && <span className="rfq-quotes">▤ {rfq.quotations} quotations</span>}</div>
+        <p><b>Description:</b> {rfq.desc}</p>
+      </div>
+      <div className="rfq-card-side">
+        <div className="rfq-card-status">{!rfq.sent && <span className="rfq-hours">◔ {rfq.hoursLeft}</span>}<span className="rfq-open-badge">{rfq.status}</span></div>
+        <span className="rfq-date">▣ {rfq.date}</span>
+        {!rfq.sent && <button className="rfq-send-btn" onClick={(event) => { event.stopPropagation(); onSend() }}>Send Quotation</button>}
+      </div>
+    </article>
+  )
+}
+
+function RfqHubList({ onLogoClick, onOpen }: { onLogoClick: () => void; onOpen: () => void }) {
+  const tabs = [['All RFQs', 150], ['Open', 20], ['Draft', 10], ['Closed', 50]] as const
+  return (
+    <RfqHubShell onLogoClick={onLogoClick}>
+      <div className="rfq-heading focus-card" aria-label="My Quotations"><h1>My Quotations</h1><p>Manage and Track industriial procurement requets.</p></div>
+      <div className="rfq-filters">
+        <label className="rfq-search">⌕<input placeholder="Search by name, products..." /></label>
+        <div className="rfq-location">Location <b>⌄</b></div>
+        <button className="rfq-reset">↻ Reset</button>
+      </div>
+      <div className="rfq-tabsrow">
+        <div className="rfq-tabs">{tabs.map(([label, count], i) => <button key={label} className={`rfq-tab ${i === 0 ? 'active' : ''}`}>{label} ({count})</button>)}</div>
+        <button className="rfq-refresh">↻ Refresh</button>
+      </div>
+      <div className="rfq-cardlist">{RFQ_LIST.map((rfq) => <RfqCard key={rfq.title} rfq={rfq} onSend={onOpen} />)}</div>
+    </RfqHubShell>
+  )
+}
+
+function RfqDetailCard() {
+  const [expanded, setExpanded] = useState(false)
+  const rfq = RFQ_DETAIL
+  return (
+    <div className="rfq-detail-card">
+      <div className="rfq-detail-title focus-card" aria-label="RFQ Details"><span className="rfq-detail-eyebrow"><i>▤</i> RFQ Details</span></div>
+      <div className="rfq-detail-body">
+        <img src={rfq.image} alt="" />
+        <div className="rfq-detail-main">
+          <div className="rfq-detail-head"><h2>{rfq.title}</h2><span className="rfq-open-badge">OPEN</span></div>
+          <div className="rfq-card-meta"><span className="rfq-dot">◉</span><b>Ship to:</b> {rfq.shipTo}<span className="rfq-quotes">▤ {rfq.quotations} quotations</span><span className="rfq-date">▣ {rfq.date}</span></div>
+          <p className="rfq-desc-label">Description</p>
+          <p className={`rfq-desc ${expanded ? 'expanded' : ''}`}>{rfq.desc}</p>
+          <button className="rfq-viewmore" onClick={() => setExpanded((value) => !value)}>{expanded ? 'View less' : 'View more'} ⌄</button>
+        </div>
+      </div>
+      <div className="rfq-specs">
+        <div className="rfq-spec"><span><i>◧</i> Target Price</span><strong>{rfq.targetPrice}</strong></div>
+        <div className="rfq-spec"><span><i>◍</i> Quanity</span><strong>{rfq.quantity}</strong></div>
+        <div className="rfq-spec"><span><i>◔</i> Unit</span><strong>{rfq.unit}</strong></div>
+        <div className="rfq-spec"><span><i>◎</i> Destination Country</span><strong>{rfq.destination}</strong></div>
+      </div>
+      <p className="rfq-attach-label">Attachment</p>
+      <div className="rfq-attach"><span className="rfq-pdf">PDF</span><div><strong>{rfq.attachment.name}</strong><small>PDF • {rfq.attachment.size}</small></div><span className="rfq-download">↓</span></div>
+    </div>
+  )
+}
+
+function RfqHubDetail({ stage, onLogoClick, onBack, onNext }: { stage: RfqStage; onLogoClick: () => void; onBack: () => void; onNext: () => void }) {
+  const rightPanel =
+    stage === 'form' ? (
+      <div className="rfq-quote-form">
+        <strong className="rfq-quote-title focus-card" aria-label="Your quotations">Your quotations</strong>
+        <label className="rfq-field"><span>Target Price</span><div className="rfq-price-input"><span>USD <b>⌄</b></span><input defaultValue="20" /></div></label>
+        <label className="rfq-field"><span>Quanity</span><input defaultValue="10000" /></label>
+        <label className="rfq-field"><span>Unit</span><input defaultValue="unit" /></label>
+        <label className="rfq-field"><span>Destination Country</span><input defaultValue="Vietnam" /></label>
+        <label className="rfq-field rfq-notes-field" aria-label="Notes"><span>Notes</span><textarea placeholder="Message to Buyer" maxLength={400} /><i className="rfq-count">0/400</i></label>
+        <div className="rfq-upload"><strong>Upload attachment</strong><small>Format jpg, jpeg, png, max 5mb</small><div className="rfq-upload-row"><span className="rfq-upload-box">🖼</span><button className="rfq-upload-btn"><i>↥</i> Upload image</button></div></div>
+      </div>
+    ) : stage === 'sent' ? (
+      <div className="rfq-sent-panel focus-card" aria-label="Quotations Sent">
+        <span className="rfq-sent-check">✓</span>
+        <strong>Quotations Sent</strong>
+        <p>You have successfully submitted this RFQ</p>
+        <ul className="rfq-sent-steps">
+          <li><span className="rfq-step-done">✓</span><div><strong>Quotations sent</strong><small>30 minute ago</small></div></li>
+          <li><span className="rfq-step-wait">✳</span><div><strong>Awaiting response</strong><small>You will receive notification if the buyer connect with you</small></div></li>
+        </ul>
+        <button className="rfq-primary-btn" onClick={onBack}>👁 View my quotation</button>
+      </div>
+    ) : (
+      <div className="rfq-send-prompt">
+        <span className="rfq-send-icon">➤</span>
+        <strong>Send your quotations</strong>
+        <p>Send your offers to connect with this buyers</p>
+        <button className="rfq-primary-btn" onClick={onNext}>Send Quotation</button>
+      </div>
+    )
+
+  return (
+    <RfqHubShell onLogoClick={onLogoClick}>
+      <button className="rfq-back" onClick={onBack}><i>←</i> Back</button>
+      <div className="rfq-detail-grid">
+        <RfqDetailCard />
+        <div className="rfq-right-panel">{rightPanel}</div>
+      </div>
+      <div className="rfq-buyers">
+        <h3>See what buyers are sourcing right now</h3>
+        <p className="rfq-buyers-sub">Connect with opportunities and grow your business</p>
+        <div className="rfq-cardlist">{RFQ_LIST.slice(0, 2).map((rfq) => <RfqCard key={rfq.title} rfq={rfq} onSend={onNext} />)}</div>
+      </div>
+      <div className="rfq-bottombar">
+        <button className="rfq-draft-btn" onClick={() => window.alert('Mock action: quotation saved as draft.')}>Save Draft</button>
+        <button className="rfq-send-btn" onClick={onNext}><i>➤</i> Send Quotation</button>
+      </div>
+    </RfqHubShell>
+  )
 }
 
 function UserWorkspaceBoothConfig({ onLogoClick, onSave }: { onLogoClick: () => void; onSave: () => void }) {
   const productCatalog = [
-    { name: 'Premium Melamine Board', category: 'Furniture Materials', price: '$42.00 / sheet', image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Modern Kitchen Cabinet', category: 'Kitchen Furniture', price: '$680.00 / set', image: 'https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Decorative Laminate Surface', category: 'Interior Surface', price: '$35.00 / sqm', image: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Wardrobe Sliding Door System', category: 'Home Furniture', price: '$220.00 / set', image: 'https://images.unsplash.com/photo-1618220048045-10a6dbdf83e0?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Wood Grain Acrylic Panel', category: 'Decorative Panel', price: '$58.00 / panel', image: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Modular Office Storage', category: 'Office Furniture', price: '$310.00 / unit', image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Traditional Roasted Robusta', category: 'Roasted Coffee', price: '68,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Roasted Robusta Coffee', category: 'Coffee Beans', price: '68,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Arabica Roasted Beans', category: 'Coffee Beans', price: '107,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Energy Blend Roasted', category: 'Roasted Coffee', price: '78,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Premium Roasted Bean', category: 'Roasted Coffee', price: '82,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'ORE Coffee - Instant Coffee', category: 'Instant Coffee', price: '95,000 ₫ / box', image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
   ]
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
   const [selectedProductNames, setSelectedProductNames] = useState(productCatalog.slice(0, 3).map((product) => product.name))
@@ -379,7 +1222,7 @@ function UserWorkspaceBoothConfig({ onLogoClick, onSave }: { onLogoClick: () => 
         <header className="partner-topbar user-workspace-topbar">
           <span>□</span>
           <div className="partner-crumb"><span>User Workspace</span><b>›</b><span>Expo Management</span><b>›</b><strong>Booth Config</strong></div>
-          <div className="workspace-company">Cong ty Co phan Go An Cuong</div>
+          <div className="workspace-company">Cong ty Co phan Sai Gon An Thai</div>
           <button className="workspace-language">EN - USD</button>
           <span className="partner-notification">◇<i>1</i></span>
         </header>
@@ -470,7 +1313,7 @@ function UserWorkspaceBoothConfig({ onLogoClick, onSave }: { onLogoClick: () => 
               <div className="booth-stage">
                 <div className="booth-wall back-wall">
                   <img src={furnitureExpoMock.thumbnailUrl} alt="" />
-                  <strong>AN CUONG</strong>
+                  <strong>SAI GON AN THAI</strong>
                 </div>
                 <div className="booth-wall left-wall" />
                 <div className="booth-wall right-wall">
@@ -508,13 +1351,13 @@ function ProductSelectorModal({ products, selectedProductNames, onToggleProduct,
           <div>
             <p>PRODUCT CATALOG</p>
             <h2>Select Product</h2>
-            <span>Products uploaded previously from AI Onboarding for An Cuong.</span>
+            <span>Products uploaded previously from AI Onboarding for Sai Gon An Thai.</span>
           </div>
           <button onClick={onClose} aria-label="Close">×</button>
         </header>
         <div className="product-selector-toolbar">
           <label>⌕<input placeholder="Search product name..." /></label>
-          <select defaultValue="All Categories"><option>All Categories</option><option>Furniture Materials</option><option>Kitchen Furniture</option><option>Interior Surface</option></select>
+          <select defaultValue="All Categories"><option>All Categories</option><option>Roasted Coffee</option><option>Coffee Beans</option><option>Instant Coffee</option></select>
           <span>{selectedProductNames.length} selected</span>
         </div>
         <div className="product-selector-list">
@@ -552,7 +1395,7 @@ function UserWorkspaceExpoDashboard({ onLogoClick, onOpen }: { onLogoClick: () =
         <header className="partner-topbar user-workspace-topbar">
           <span>□</span>
           <div className="partner-crumb"><span>User Workspace</span><b>›</b><span>Expo Management</span><b>›</b><strong>Expo Dashboard</strong></div>
-          <div className="workspace-company">Cong ty Co phan Go An Cuong</div>
+          <div className="workspace-company">Cong ty Co phan Sai Gon An Thai</div>
           <button className="workspace-language">EN - USD</button>
           <span className="partner-notification">◇<i>1</i></span>
         </header>
@@ -599,7 +1442,7 @@ function UserWorkspaceExpoDetail({ onLogoClick, onBack }: { onLogoClick: () => v
         <header className="partner-topbar user-workspace-topbar">
           <span>□</span>
           <div className="partner-crumb"><span>User Workspace</span><b>›</b><span>Expo Dashboard</span><b>›</b><strong>{furnitureExpoMock.name}</strong></div>
-          <div className="workspace-company">Cong ty Co phan Go An Cuong</div>
+          <div className="workspace-company">Cong ty Co phan Sai Gon An Thai</div>
           <button className="workspace-language">EN - USD</button>
           <span className="partner-notification">◇<i>1</i></span>
         </header>
@@ -763,7 +1606,7 @@ function UserWorkspaceSidebar({ onLogoClick }: { onLogoClick: () => void }) {
       </nav>
       <div className="partner-profile">
         <span>AC</span>
-        <div><strong>An Cuong Admin</strong><small>exhibitor@ancuong.com</small></div>
+        <div><strong>An Thai Admin</strong><small>exhibitor@anthaigroup.vn</small></div>
         <b>›</b>
       </div>
     </aside>
@@ -803,7 +1646,7 @@ function VisitorInvitationEmail({ onLogoClick, onJoin }: { onLogoClick: () => vo
 }
 
 function TradeXpoSelectBoothTier({ onLogoClick, onBookNow, autoScroll = true }: { onLogoClick: () => void; onBookNow: () => void; autoScroll?: boolean }) {
-  const exhibitors = ['VICONS Materials', 'An Cuong Wood', 'Hoa Binh Construction', 'Viet Steel', 'Modern M&E', 'Green Glass', 'Smart Home VN', 'Bamboo Surface']
+  const exhibitors = ['VICONS Materials', 'Sai Gon An Thai', 'Hoa Binh Construction', 'Viet Steel', 'Modern M&E', 'Green Glass', 'Smart Home VN', 'Bamboo Surface']
   const productImages = ['/tradexpo-product-1.png', '/tradexpo-product-2.png', '/tradexpo-product-3.png', '/tradexpo-product-4.png']
   const categories = [
     ['Surface & Interior Finishing', '/tradexpo-category-1.png'],
@@ -1340,7 +2183,7 @@ function ExhibitorLoginReference({ onLogoClick, onCreateAccount }: { onLogoClick
 
 function ExhibitorAiOnboardingEntry({ onLogoClick, onStartScan }: { onLogoClick: () => void; onStartScan: () => void }) {
   const [expandedOption, setExpandedOption] = useState<string | null>(null)
-  const [businessWebsite, setBusinessWebsite] = useState('https://ancuong.com/')
+  const [businessWebsite, setBusinessWebsite] = useState('https://anthaigroup.vn')
   const [isScanning, setIsScanning] = useState(false)
   const startAiScan = () => {
     setIsScanning(true)
@@ -1438,7 +2281,7 @@ function ExhibitorGeneralInfoPage({ onLogoClick, onBack, onSubmit }: { onLogoCli
   // the default navigation to fire; we keep focus on the current window after.
   const previewProfileInBackground = () => {
     const a = document.createElement('a')
-    a.href = 'https://arobid.com/en/supplier/019e4e0b-ba2d-77dc-8689-2fed495ef9a4'
+    a.href = 'https://arobid.com/en/supplier/sai-gon-an-thai-joint-stock-company_740'
     a.target = '_blank'
     a.rel = 'noopener noreferrer'
     a.style.display = 'none'
@@ -1458,14 +2301,14 @@ function ExhibitorGeneralInfoPage({ onLogoClick, onBack, onSubmit }: { onLogoCli
         <button className="return-link" onClick={onBack}>← Return to Supplier Request</button>
         <form className="general-info-form" onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
           <h2>General Info</h2>
-          <label className="full">Business Name <b>*</b><input defaultValue="Công ty Cổ phần Gỗ An Cường" /></label>
+          <label className="full">Business Name <b>*</b><input defaultValue="Công ty Cổ phần Sài Gòn An Thái" /></label>
           <div className="general-info-grid">
             <label>Business Type <b>*</b><select defaultValue="Distributor and Manufacturer"><option>Distributor and Manufacturer</option><option>Manufacturer</option><option>Distributor</option><option>Exporter</option></select></label>
             <label>Country <b>*</b><select defaultValue="Viet Nam"><option>Viet Nam</option><option>Singapore</option><option>Thailand</option><option>United States</option></select></label>
             <label>TaxID <b>*</b><input placeholder="Enter your TaxID" /></label>
             <label>Phone Number <b>*</b><input placeholder="Enter your phone number" /></label>
           </div>
-          <label className="full">Address <b>*</b><input defaultValue="Thửa Đất 681, Tờ Bản Đồ 05, Đường ĐT 747B, Khu Phố Phước Hải, Phường Tân Khánh, Thành Phố Hồ Chí Minh, Việt Nam" /></label>
+          <label className="full">Address <b>*</b><input defaultValue="263 Đường Vườn Lài, Phường Phú Thọ Hòa, Quận Tân Phú, Thành Phố Hồ Chí Minh, Việt Nam" /></label>
           <div className="general-submit-row"><button type="button" className="preview-profile-button" onClick={previewProfileInBackground}>Preview Profile</button><button type="submit">Submit <span>→</span></button></div>
         </form>
       </main>
@@ -1486,72 +2329,12 @@ function AdminNavIcon({ item }: { item: string }) {
   return <svg className="admin-nav-icon" viewBox="0 0 24 24" aria-hidden="true">{paths[item]}</svg>
 }
 
-type DemoJourneyStep = {
-  actor: string
-  action: string
-  screen: string
-  script: string
-  path: string
-  cta?: string
-  prep?: string[]
-  focus?: string
-}
 
-const eid = furnitureExpoMock.id
-// Script content strictly follows "Arobid - TradeXpo Sell Kit - Offline Word.docx".
-const demoScriptSteps: DemoJourneyStep[] = [
-    { actor: 'Seller / Demo Presenter', action: 'Click Run Demo Journey', screen: 'Role Selection', path: '/', script: 'Đây là trang điều hướng chính của Sales Kit. Người xem có thể chạy toàn bộ demo journey từ đầu, hoặc mở từng role để xem từng màn hình riêng biệt.' },
-    { actor: 'Seller / Demo Presenter', action: 'Expand từng Role card', screen: 'Role Selection', path: '/', script: 'Mỗi role đại diện cho một nhóm người dùng trong hệ sinh thái Arobid: Admin, Partner, Exhibitor và Visitor. Khi click vào role, hệ thống hiển thị các màn hình tương ứng đã được chuẩn bị cho demo.' },
-    { actor: 'Admin', action: 'Mở Expo Management List', screen: '/admin/expo', path: '/admin/expo', script: 'Admin bắt đầu bằng việc quản lý danh sách Expo. Đây là nơi Admin xem các chương trình Expo đang có, trạng thái, ngày tổ chức, owner và các thông tin vận hành chính.' },
-    { actor: 'Admin', action: 'Click Create New', screen: '/admin/expo/create', path: '/admin/expo', cta: 'Create New', script: 'Admin tạo Expo mới cho Partner. Form đã được prefill bằng dữ liệu mẫu để mô phỏng quy trình thật, bao gồm template, owner email, mô tả, category, thời gian, hall và số lượng booth.' },
-    { actor: 'Admin', action: 'Kiểm tra Expo Owner Email', screen: 'Create Expo', path: '/admin/expo/create', focus: 'Owner email', script: 'Email owner là partner-email@domain.com. Dữ liệu này được dùng xuyên suốt các bước tiếp theo để thể hiện Partner là chủ sở hữu Expo.' },
-    { actor: 'Admin', action: 'Kiểm tra Thumbnail / Banner', screen: 'Create Expo', path: '/admin/expo/create', focus: 'banner preview', script: 'Thumbnail đã được upload sẵn bằng banner Furniture Expo. Đây là hình đại diện sẽ xuất hiện trong danh sách Expo của Partner và các màn hình downstream.' },
-    { actor: 'Admin', action: 'Kiểm tra Hall configuration', screen: 'Create Expo', path: '/admin/expo/create', focus: 'Hall name', script: 'Admin cấu hình số lượng booth: Basic 150 slot, Professional 40 slot, Premium 10 slot. Tổng số slot này sẽ dùng cho các bước vận hành Expo sau.' },
-    { actor: 'Admin', action: 'Click Submit', screen: 'Create Expo → Role Selection', path: '/admin/expo/create', cta: 'Submit', script: 'Sau khi Admin submit, hệ thống quay về Role Selection để chuyển sang vai trò Partner. Điều này mô phỏng việc Admin đã tạo xong Expo và Partner sẽ tiếp tục cấu hình / vận hành.' },
-    { actor: 'Partner', action: 'Mở Partner Role → Expo Config List', screen: '/partner/expos', path: '/partner/expos', script: 'Partner nhìn thấy Expo vừa được Admin tạo. Trạng thái ở giai đoạn cấu hình là Draft, nghĩa là Partner cần kiểm tra và submit approval.' },
-    { actor: 'Partner', action: 'Click Expo card', screen: 'Partner Expo Detail', path: '/partner/expos', cta: 'Vietnam Furniture Expo 2026', script: 'Khi Partner click vào card, hệ thống mở màn hình chi tiết Expo. Tại đây Partner có thể xem thông tin, banner, template 3D, category, thời gian và các dữ liệu đã được Admin tạo trước đó.' },
-    { actor: 'Partner', action: 'Click ảnh 3D Template', screen: 'Partner Expo Detail', path: `/partner/expos/${eid}`, cta: 'preview 3D expo map', script: 'Partner có thể preview template 3D đã được Admin chọn trước đó. Khi click vào ảnh nhỏ, hệ thống mở popup chứa 3D Expo Hall template.' },
-    { actor: 'Partner', action: 'Click Submit for Approval', screen: 'Partner Expo Detail', path: `/partner/expos/${eid}`, cta: 'Submit for Approval', script: 'Partner submit Expo để chuyển sang trạng thái vận hành. Sau bước này, Expo chuyển sang trạng thái Upcoming.' },
-    { actor: 'Partner', action: 'Mở Expo Operation List', screen: '/partner/operation/expos', path: '/partner/operation/expos', script: 'Ở màn hình Operation, Partner quản lý các Expo đã được duyệt hoặc sắp diễn ra. Expo hiện có trạng thái Upcoming, sẵn sàng cho các hành động vận hành như mời Exhibitor hoặc Visitor.' },
-    { actor: 'Partner', action: 'Click Expo Operation card', screen: 'Partner Operation Detail', path: '/partner/operation/expos', cta: 'Vietnam Furniture Expo 2026', script: 'Partner vào chi tiết Expo ở trạng thái vận hành. Lúc này hệ thống hiển thị nút Invite Exhibitor để bắt đầu mời doanh nghiệp tham gia làm nhà trưng bày.' },
-    { actor: 'Partner', action: 'Click Invite Exhibitor', screen: 'Invite Exhibitor Modal', path: `/partner/operation/expos/${eid}`, cta: 'Invite Exhibitor', script: 'Đây là modal mời Exhibitor. Partner có thể mời từ danh sách công ty có profile trên Arobid hoặc mời external bằng email.' },
-    { actor: 'Partner', action: 'Switch Arobid / External', screen: 'Invite Exhibitor Modal', path: `/partner/operation/expos/${eid}`, cta: 'External', prep: ['Invite Exhibitor'], script: 'Tab Arobid dùng để chọn các company profile đã có trong hệ thống. Tab External dùng để gửi invitation qua email cho các doanh nghiệp bên ngoài.' },
-    { actor: 'Partner', action: 'Chọn company profile', screen: 'Invite Exhibitor Modal', path: `/partner/operation/expos/${eid}`, cta: 'Verified supplier', prep: ['Invite Exhibitor', 'Arobid'], script: 'Partner có thể check/uncheck nhiều công ty trong danh sách. Đây mô phỏng danh sách Arobid company profile.' },
-    { actor: 'Partner', action: 'Dán nhiều email', screen: 'External Invite Modal', path: `/partner/operation/expos/${eid}`, prep: ['Invite Exhibitor', 'External'], focus: 'Paste emails', script: 'Ở chế độ External, Partner chỉ cần paste nhiều email vào input. Hệ thống tự parse thành email tags, không cần bấm Add Email thủ công.' },
-    { actor: 'Partner', action: 'Click Copy Invitation Link', screen: 'Invite Modal', path: `/partner/operation/expos/${eid}`, cta: 'Copy Invitation Link', prep: ['Invite Exhibitor'], script: 'Partner có thể copy invitation link để gửi qua kênh riêng như Zalo, email cá nhân hoặc CRM.' },
-    { actor: 'Partner', action: 'Click Preview Invitation Email', screen: 'Invite Modal', path: `/partner/operation/expos/${eid}`, cta: 'Preview Invitation Email', prep: ['Invite Exhibitor', 'External'], script: 'Partner preview email trước khi gửi. Email có CTA Join và note rằng template có thể được Arobid điều chỉnh theo yêu cầu Partner.' },
-    { actor: 'Partner', action: 'Click Batch Send', screen: 'Invite Modal', path: `/partner/operation/expos/${eid}`, cta: 'Batch Send', prep: ['Invite Exhibitor', 'External'], script: 'Partner gửi hàng loạt invitation email. Trong demo, hệ thống hiển thị trạng thái mock sent để mô phỏng việc email đã được queue.' },
-    { actor: 'Exhibitor', action: 'Mở Invitation Email', screen: '/exhibitor/invitation', path: '/exhibitor/invitation', script: 'Exhibitor nhận email mời tham gia Expo. Email có thông tin Expo, ngày tổ chức, category và CTA Join.' },
-    { actor: 'Exhibitor', action: 'Click Join', screen: 'TradeXpo Detail', path: '/exhibitor/invitation', cta: 'Join', script: 'Khi Exhibitor click Join, họ được đưa đến trang Expo Detail để xem thông tin Expo trước khi chọn booth.' },
-    { actor: 'Exhibitor', action: 'Click Book Now', screen: '/tradexpo/select-position', path: '/tradexpo/expo-detail', cta: 'Book Now', script: 'Exhibitor bắt đầu quy trình đặt booth. Họ có thể chọn booth tier và vị trí booth trên map.' },
-    { actor: 'Exhibitor', action: 'Click điểm trên map', screen: 'Select Position', path: '/tradexpo/select-position', cta: 'Select a booth', script: 'Khi click vào một điểm trên map, hệ thống chuyển sang trạng thái selected để thể hiện booth đã được chọn.' },
-    { actor: 'Exhibitor', action: 'Click Process to Payment', screen: 'Quick Signup Popup', path: '/tradexpo/select-position', cta: 'Proceed to Payment', prep: ['Select a booth'], script: 'Trước khi payment, hệ thống hiển thị popup Quick Signup ngay trên màn hình hiện tại.' },
-    { actor: 'Exhibitor', action: 'Click Quick Sign up', screen: 'Payment Success', path: '/tradexpo/select-position', cta: 'Quick Sign Up', prep: ['Select a booth', 'Proceed to Payment'], script: 'Sau Quick Signup, Khách hàng thanh toán theo phương thức được chọn, sau khi thanh toán thành công, hệ thống chuyển đến màn hình thanh toán thành công.' },
-    { actor: 'Exhibitor', action: 'Click Customize your booth', screen: '/exhibitor/ai-onboarding', path: '/tradexpo/payment-success', cta: 'Customize', script: 'Sau payment thành công, Exhibitor được dẫn đến bước customize booth, bắt đầu từ AI Onboarding.' },
-    { actor: 'Exhibitor', action: 'Click AroAI Onboarding', screen: 'AI Onboarding', path: '/exhibitor/ai-onboarding', cta: 'AroAI Onboarding', script: 'AroAI Onboarding cho phép doanh nghiệp nhập website để AI crawl và tạo profile ban đầu.' },
-    { actor: 'Exhibitor', action: 'Click Start Scan & Create Profile', screen: 'AI Loading → General Info', path: '/exhibitor/ai-onboarding', cta: 'Start Scan', prep: ['AroAI Onboarding'], script: 'Sau quá trình AI extracting, hệ thống hiển thị trang General Info với dữ liệu đã được prefill.' },
-    { actor: 'Exhibitor', action: 'Click Preview Profile', screen: 'General Info', path: '/exhibitor/general-info', cta: 'Preview Profile', script: 'Exhibitor có thể preview profile public trên Arobid.' },
-    { actor: 'Exhibitor', action: 'Click Submit', screen: 'General Info → Login', path: '/exhibitor/general-info', cta: 'Submit', script: 'Sau khi submit General Info, hệ thống chuyển Exhibitor đến trang tạo tài khoản.' },
-    { actor: 'Exhibitor', action: 'Mở Create Account', screen: '/exhibitor/login', path: '/exhibitor/login', script: 'Đây là màn hình tạo tài khoản Arobid cho Exhibitor.' },
-    { actor: 'Exhibitor', action: 'Click Create Arobid Account', screen: '/user/workspace', path: '/exhibitor/login', cta: 'Create Arobid Account', script: 'Sau khi Tạo tài khoản/ Đăng nhập, Exhibitor được dẫn đến trang Booth Config.' },
-    { actor: 'Exhibitor', action: 'Mở Booth Config Workspace', screen: '/user/workspace', path: '/user/workspace', script: 'Đây là workspace để Exhibitor cấu hình booth: màu sắc, banner, featured products, video, preview và save customization.' },
-    { actor: 'Exhibitor', action: 'Click Select Product', screen: 'Product Selection Modal', path: '/user/workspace', cta: 'Select Product', script: 'Featured Products cho phép chọn sản phẩm đã được upload trước đó từ AI Onboarding. User có thể check/uncheck sản phẩm để đưa vào booth.' },
-    { actor: 'Exhibitor', action: 'Click Save Customization Booth', screen: 'Expo Dashboard', path: '/user/workspace', cta: 'Save Customization', script: 'Sau khi lưu booth customization, hệ thống chuyển sang dashboard các Expo mà doanh nghiệp đã tham gia.' },
-    { actor: 'Exhibitor', action: 'Click Expo card', screen: 'Joined Expo Detail', path: '/user/workspace/expo-dashboard', cta: 'Vietnam Furniture Expo 2026', script: 'Khi Exhibitor chọn expo, hệ thống hiển thị chi tiết Expo ở màn hình quản lý của Exhibitor.' },
-    { actor: 'Exhibitor', action: 'Click Go to RFQ Center', screen: 'KPI Section', path: `/user/workspace/expo-dashboard/${eid}`, cta: 'RFQ Center', script: 'CTA này đại diện cho việc đi đến RFQ Center để xử lý các RFQ từ buyer. Trong demo hiện tại, button thể hiện entry point tương tác.' },
-    { actor: 'Exhibitor', action: 'Click Go to Deal Room (Chat)', screen: 'KPI Section', path: `/user/workspace/expo-dashboard/${eid}`, cta: 'Deal Room', script: 'CTA này đại diện cho việc đi đến Deal Room để chat với buyer hoặc xử lý hội thoại thương mại.' },
-    { actor: 'Exhibitor', action: 'Click Go To 3D Expo', screen: 'Joined Expo Detail', path: `/user/workspace/expo-dashboard/${eid}`, cta: '3D Expo', script: 'User có thể mở 3D expo đã tham gia.' },
-    { actor: 'Exhibitor', action: 'Click Invite Visitor', screen: 'Visitor Invite Modal', path: `/user/workspace/expo-dashboard/${eid}`, cta: 'Invite Visitor', script: 'Exhibitor hoặc workspace user có thể mời Visitor vào Expo.' },
-    { actor: 'Exhibitor', action: 'Preview Visitor Email', screen: 'Visitor Invite Modal', path: `/user/workspace/expo-dashboard/${eid}`, cta: 'Preview Invitation Email', prep: ['Invite Visitor'], script: 'Email preview có CTA Join. CTA này dẫn Visitor đến Expo Detail Page để xem thông tin Expo.' },
-    { actor: 'Visitor', action: 'Mở Visitor Invitation Email', screen: '/visitor/invitation', path: '/visitor/invitation', script: 'Visitor nhận email mời tham quan Expo. Nội dung tập trung vào việc khám phá exhibitor, sản phẩm và 3D Expo.' },
-    { actor: 'Visitor', action: 'Click Join', screen: '/tradexpo/expo-detail', path: '/visitor/invitation', cta: 'Join', script: 'Visitor được đưa vào Expo Detail Page.' },
-    { actor: 'Visitor', action: 'Click Virtual Lobby', screen: 'TradeXpo Banner', path: '/tradexpo/expo-detail', cta: 'Virtual Lobby', script: 'Visitor có thể click Virtual Lobby để vào 3D Expo.' },
-    { actor: 'Visitor', action: 'Browse Expo Detail Page', screen: 'TradeXpo Detail', path: '/tradexpo/expo-detail', script: 'Visitor có thể xem thông tin Expo, exhibitor cards, featured products, Who Should Attend, Exclusive Values, booth types và footer.' },
-    { actor: 'Visitor / Exhibitor', action: 'Click Book Now', screen: 'Select Position', path: '/tradexpo/expo-detail', cta: 'Book Now', script: 'Nếu người dùng muốn tham gia với vai trò Exhibitor, họ có thể đi tiếp vào flow chọn booth và thanh toán.' },
-]
-
-function DemoJourney({ onExit }: { onExit: () => void }) {
-  const steps = demoScriptSteps
+// Runs the guided journey over ANY step list. Without a flow it plays the full
+// journey; with one it plays just that flow's steps. Everything below (progress
+// bar, step count, skip-to table, keyboard nav) already derives from `steps`.
+function DemoJourney({ flow, onExit }: { flow?: RoleFlow; onExit: () => void }) {
+  const steps = flow ? flow.steps : demoScriptSteps
   const total = steps.length
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<'intro' | 'highlight' | 'script' | 'action'>('intro')
@@ -1563,7 +2346,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
   const { lang } = useLanguage()
-  const activeScript = lang === 'en' ? (demoScriptEn[index] ?? step.script) : step.script
+  const activeScript = lang === 'en' ? (step.scriptEn ?? step.script) : step.script
   const typingDone = typed.length >= activeScript.length
 
   // Find the real clickable control named by some text (a button/tab/card label).
@@ -1626,7 +2409,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     const vw = iframe?.clientWidth || doc.documentElement.clientWidth
     const vh = iframe?.clientHeight || doc.documentElement.clientHeight
     const needle = step.focus.toLowerCase()
-    const sel = 'label.form-field, input, textarea, select, img, [class*="card"], [class*="upload"], [class*="thumbnail"], [class*="hall"], [class*="banner"], [class*="tier"], [class*="featured"], [class*="email"], [class*="supplier"]'
+    const sel = 'label.form-field, input, textarea, select, img, [class*="card"], [class*="upload"], [class*="thumbnail"], [class*="hall"], [class*="banner"], [class*="tier"], [class*="featured"], [class*="email"], [class*="supplier"], [class*="status"], [class*="badge"]'
     const nodes = Array.from(doc.querySelectorAll(sel)) as HTMLElement[]
     let best: HTMLElement | null = null
     let bestArea = Infinity
@@ -1789,18 +2572,34 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
   // bring it into the right state, then re-highlight. The cloned screen keeps its
   // state across same-route steps, and the openers are idempotent (set-open), so
   // re-running this is safe.
+  // Keyed on the STEP, not the phase. The highlight phase only lasts ~1.3s, so
+  // cancelling on the phase flip used to abort the prep clicks half-way whenever
+  // the screen was slow — leaving the modal shut for the rest of the step.
   useEffect(() => {
-    if (phase !== 'highlight' || !step.prep || !step.prep.length) return
-    const doc = iframeRef.current?.contentDocument
-    if (!doc) return
+    if (!step.prep || !step.prep.length) return
     const labels = step.prep
     let cancelled = false
     let i = 0
+    let waited = 0
     const runNext = () => {
       if (cancelled) return
+      // Re-read the document on every tick. When the user jumps straight to a modal
+      // sub-step ("Skip to"), the iframe remounts and its initial empty document is
+      // REPLACED once the screen loads — a reference captured up front goes stale,
+      // and every prep click silently misses. So wait for a rendered document first.
+      const doc = iframeRef.current?.contentDocument
+      if (!doc || doc.readyState !== 'complete' || !doc.body?.children.length) {
+        waited += 120
+        if (waited > 5000) return
+        window.setTimeout(runNext, 120)
+        return
+      }
       // Stop once the step's own CTA is already reachable, so we never re-click an
-      // opener/tab that would toggle the state back closed.
+      // opener/tab that would toggle the state back closed. Same for a focus-only
+      // step (no CTA): if its target is already on screen the state is right, and
+      // re-running the openers would toggle a checkbox / tab back off behind it.
       if (step.cta && findClickableByText(doc, step.cta, 0.95)) { paintHighlights(); return }
+      if (!step.cta && step.focus && findFocusElement(doc)) { paintHighlights(); return }
       if (i >= labels.length) { paintHighlights(); return }
       findClickableByText(doc, labels[i], 0.95)?.click()
       i += 1
@@ -1808,7 +2607,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     }
     const start = window.setTimeout(runNext, 80)
     return () => { cancelled = true; window.clearTimeout(start) }
-  }, [phase, index, runKey])
+  }, [index, runKey])
 
   // Close standalone preview popups (e.g. the 3D template modal) when leaving a
   // step so they don't linger over the next step. Modal sub-step flows reopen
@@ -1848,7 +2647,13 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     const modal = doc.querySelector('[role="dialog"], .template-modal-backdrop, .quick-signup-overlay, .booth-benefits-overlay') as HTMLElement | null
     if (modal) modal.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
-  const runDemo = () => { clickPrimaryCta(); setPhase('action'); window.setTimeout(scrollPopupIntoView, 260) }
+  // A built-screen step that links out (e.g. "Publish the tenant homepage"): the
+  // preview already shows the real portal, so "Open ▸" just pops the live public site
+  // in a parallel tab rather than clicking inside the iframe.
+  const runDemo = () => {
+    if (step.openUrl) { window.open(step.openUrl, '_blank', 'noopener,noreferrer'); setPhase('action'); return }
+    clickPrimaryCta(); setPhase('action'); window.setTimeout(scrollPopupIntoView, 260)
+  }
 
   // Keyboard controls, game-style. In the script phase, only steps with a CTA
   // run a demo click; the rest just advance to the next step.
@@ -1867,6 +2672,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
     <div className="gtour-stage">
       <div className="gtour-topbar">
         <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo.svg" alt="arobid.com" /><small>Sales Kit</small></button>
+        {flow && <span className="gtour-flow-title">{lang === 'en' ? flow.nameEn : flow.nameVi}</span>}
         <div className="gtour-progress">{steps.map((_, i) => <span key={i} className={i === index ? 'on' : i < index ? 'done' : ''} />)}</div>
         <div className="gtour-count">{index + 1} / {total}</div>
         <button className="gtour-exit" onClick={onExit}>Exit ✕</button>
@@ -1885,7 +2691,7 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
           {dockHidden ? 'Show script ▴' : 'Hide script ▾'}
         </button>
         <div className="gtour-dock-card">
-          <div className="gtour-speaker"><span>{step.actor}</span><b className="gtour-stepno">Step {index + 1} / {total}</b><small>{phase === 'action' ? `${step.screen} — demo` : `${step.screen} — ${step.action}`}</small></div>
+          <div className="gtour-speaker"><span>{step.actor}</span><b className="gtour-stepno">Step {index + 1} / {total}</b>{step.concept && <b className="gtour-concept">{lang === 'en' ? 'Concept' : 'Concept'}</b>}<small>{phase === 'action' ? `${step.screen} — demo` : `${step.screen} — ${step.action}`}</small></div>
           <p className="gtour-line" onClick={() => setTyped(activeScript)}>
             {phase === 'action' ? activeScript : typed}{phase === 'script' && !typingDone && <i className="gtour-caret" />}
           </p>
@@ -1903,9 +2709,60 @@ function DemoJourney({ onExit }: { onExit: () => void }) {
       {skipOpen && <div className="script-overlay" onClick={() => setSkipOpen(false)}>
         <div className="script-panel" onClick={(e) => e.stopPropagation()}>
           <header className="script-panel-head"><div><h2>Skip to a step</h2><p>{total} steps · jump to any point, then continue the journey from there.</p></div><button className="script-close" onClick={() => setSkipOpen(false)} aria-label="Close">✕</button></header>
-          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{lang === 'en' ? (demoScriptEn[i] ?? s.script) : s.script}</span></td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
+          <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Skip to</th></tr></thead><tbody>{steps.map((s, i) => <tr key={i} className={i === index ? 'script-row-current' : ''}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{lang === 'en' ? (s.scriptEn ?? s.script) : s.script}</span></td><td className="script-dir">{i === index ? <span className="script-here">Current</span> : <button className="script-go" onClick={() => goTo(i)}>Go ▸</button>}</td></tr>)}</tbody></table></div>
         </div>
       </div>}
+    </div>
+  )
+}
+
+
+// The backdrop for flows whose screens aren't built yet. One generic, data-driven
+// screen instead of a dozen bespoke mocks: it renders the flow's stages as
+// numbered cards, and the guided journey glows them one by one as it narrates.
+//
+// Each card carries a STABLE ENGLISH aria-label. The demo highlighter matches on
+// original-English text/attributes and its focus selector already includes
+// [class*="card"], so `concept-stage-card` + an English aria-label is picked up by
+// findFocusElement in BOTH languages — no new highlight machinery.
+function ConceptScreen({ flow, onLogoClick }: { flow: RoleFlow; onLogoClick: () => void }) {
+  const { lang } = useLanguage()
+  const en = lang === 'en'
+  return (
+    <div className="concept-page">
+      <header className="concept-topbar">
+        <button className="concept-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button>
+        <span className="concept-badge">{en ? 'Concept — screen in design' : 'Concept — màn hình đang thiết kế'}</span>
+      </header>
+      <main className="concept-content">
+        <p className="concept-eyebrow">{flow.actor}</p>
+        <h1>{en ? flow.nameEn : flow.nameVi}</h1>
+        <p className="concept-intro">{en ? flow.descEn : flow.descVi}</p>
+        <ol className="concept-stages">
+          {(flow.stages ?? []).map((stage, i) => (
+            <li key={stage.en} className="concept-stage-card" aria-label={stage.en}>
+              <span className="flow-num">{String(i + 1).padStart(2, '0')}</span>
+              <span className="concept-stage-body">
+                <strong>{en ? stage.en : stage.vi}</strong>
+                <small>{en ? stage.scriptEn : stage.script}</small>
+                {/* aria-label stays English so the demo highlighter (which matches on
+                    original English) finds this link in either language. */}
+                {stage.link && (
+                  <a
+                    className="concept-stage-link"
+                    href={stage.link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={stage.link.labelEn}
+                  >
+                    {en ? stage.link.labelEn : stage.link.labelVi} ↗
+                  </a>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </main>
     </div>
   )
 }
@@ -1917,56 +2774,8 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const [guideOpen, setGuideOpen] = useState(false)
   const toggleRole = (role: string) => setExpandedRoles((current) => current.includes(role) ? current.filter((item) => item !== role) : [...current, role])
-  const roles = [
-    {
-      icon: '⌘',
-      role: 'Admin',
-      description: 'Configure expos, govern participation, and monitor performance.',
-      pages: [
-        ['Expo Management List', '/admin/expo'],
-        ['Create Expo Form', '/admin/expo/create'],
-      ],
-    },
-    {
-      icon: '◈',
-      role: 'Partner',
-      description: 'Launch branded events and manage exhibitors or visitors.',
-      pages: [
-        ['Expo Config List', '/partner/expos'],
-        ['Expo Config Detail', `/partner/expos/${furnitureExpoMock.id}`],
-        ['Expo Operation List', '/partner/operation/expos'],
-        ['Expo Operation Detail', `/partner/operation/expos/${furnitureExpoMock.id}`],
-      ],
-    },
-    {
-      icon: '▦',
-      role: 'Exhibitor',
-      description: 'Create a booth, publish products, and respond to RFQs.',
-      pages: [
-        ['Invitation Email', '/exhibitor/invitation'],
-        ['Create Account', '/exhibitor/login'],
-        ['AI Onboarding', '/exhibitor/ai-onboarding'],
-        ['General Info Form', '/exhibitor/general-info'],
-        ['Booth Config Workspace', '/user/workspace'],
-        ['Joined Expo Dashboard', '/user/workspace/expo-dashboard'],
-        ['Joined Expo Detail & KPI', `/user/workspace/expo-dashboard/${furnitureExpoMock.id}`],
-      ],
-    },
-    {
-      icon: '◎',
-      role: 'Visitor',
-      description: 'Discover exhibitors, browse expo content, and enter the 3D expo.',
-      pages: [
-        ['Visitor Invitation Email', '/visitor/invitation'],
-        ['Expo Detail Page', '/tradexpo/expo-detail'],
-        ['Select Booth Tier', '/tradexpo/select-booth-tier'],
-        ['Select Position & Quick Signup', '/tradexpo/select-position'],
-        ['Payment Success', '/tradexpo/payment-success'],
-      ],
-    },
-  ]
 
-  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><span className="role-tag">Interactive role walkthrough</span></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1>Show every role, clearly.</h1><p className="role-intro">Select a role to expand its demo pages, then jump directly to any built screen with realistic, pre-filled sample data.</p><button className="run-demo-journey-button" onClick={() => onSelect('/demo-journey')}>Run Demo Journey</button><p className="desktop-hint">💻 For the best experience, explore the journey on a desktop browser.</p><section className="role-grid">{roles.map((item) => { const isExpanded = expandedRoles.includes(item.role); return <article key={item.role} className={`role-card ${isExpanded ? 'expanded' : ''}`}><button className="role-card-main" onClick={() => toggleRole(item.role)} aria-expanded={isExpanded}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p></button>{isExpanded && <div className="role-page-list">{item.pages.map(([label, path]) => <button key={path} onClick={() => onSelect(path)}><strong>{label}</strong></button>)}</div>}</article> })}</section></main>
+  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><span className="role-tag">Interactive role walkthrough</span></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1 style={{ color: '#ED6203' }}>DEMO KIT</h1><p className="role-intro">Select a role to expand its flows, then run any flow as a guided walkthrough with realistic, pre-filled sample data.</p><p className="desktop-hint">💻 For the best experience, explore the journey on a desktop browser.</p><section className="role-grid">{roleDefs.map((item) => { const isExpanded = expandedRoles.includes(item.role); return <article key={item.role} className={`role-card ${isExpanded ? 'expanded' : ''}`}><button className="role-card-main" onClick={() => toggleRole(item.role)} aria-expanded={isExpanded}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p></button>{isExpanded && <div className="role-flow-list">{item.flows.map((flow, i) => <button key={flow.id} className="role-flow-item" onClick={() => onSelect(`/demo-journey/${flow.id}`)}><span className="role-flow-head"><span className="flow-num">{String(i + 1).padStart(2, '0')}</span><strong>{lang === 'en' ? flow.nameEn : flow.nameVi}</strong><span className="role-flow-run">▸</span></span><small>{lang === 'en' ? flow.descEn : flow.descVi}</small></button>)}</div>}</article> })}</section></main>
     <button className="salekit-guide-fab" onClick={() => setGuideOpen(true)}><span className="salekit-guide-fab-icon" aria-hidden="true">i</span><span>{lang === 'vi' ? 'Hướng dẫn sử dụng Sales Kit' : 'Sales Kit User Guide'}</span></button>
     {guideOpen && <div className="guide-overlay" onClick={() => setGuideOpen(false)}>
       <div className="guide-card" onClick={(e) => e.stopPropagation()}>
@@ -2002,7 +2811,7 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
     {scriptOpen && <div className="script-overlay" onClick={() => setScriptOpen(false)}>
       <div className="script-panel" onClick={(e) => e.stopPropagation()}>
         <header className="script-panel-head"><div><h2>Demo Journey Script</h2><p>{demoScriptSteps.length} steps · jump to any screen the script is talking about.</p></div><button className="script-close" onClick={() => setScriptOpen(false)} aria-label="Close script">✕</button></header>
-        <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Direction</th></tr></thead><tbody>{demoScriptSteps.map((s, i) => <tr key={i}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{lang === 'en' ? (demoScriptEn[i] ?? s.script) : s.script}</span></td><td className="script-dir"><button className="script-go" onClick={() => onSelect(s.path)}>Go ▸</button></td></tr>)}</tbody></table></div>
+        <div className="script-table-wrap"><table className="script-table"><colgroup><col className="col-num" /><col className="col-actor" /><col className="col-action" /><col className="col-screen" /><col className="col-script" /><col className="col-dir" /></colgroup><thead><tr><th>#</th><th>Actor</th><th>Action</th><th>Screen</th><th>Script</th><th>Direction</th></tr></thead><tbody>{demoScriptSteps.map((s, i) => <tr key={i}><td className="script-num">{String(i + 1).padStart(2, '0')}</td><td className="script-actor">{s.actor}</td><td>{s.action}</td><td className="script-screen">{s.screen}</td><td className="script-text"><span className={`script-clamp${scriptExpanded.includes(i) ? " expanded" : ""}`} onClick={() => setScriptExpanded((p) => p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}>{lang === 'en' ? (s.scriptEn ?? s.script) : s.script}</span></td><td className="script-dir"><button className="script-go" onClick={() => onSelect(s.path)}>Go ▸</button></td></tr>)}</tbody></table></div>
       </div>
     </div>}
     </div>
