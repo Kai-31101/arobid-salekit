@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { furnitureExpoMock, mockPartnerEmails, partnerTenantMock, mockMemberBusinesses, mockInvitationLog } from './mockData'
 import { buildEmailTemplateXlsx, extractEmailsFromFile } from './xlsx'
-import { useLanguage } from './i18n'
+import { useLanguage, Money } from './i18n'
 import { demoScriptSteps, type DemoJourneyStep } from './demoScript'
 import { findFlow, roleDefs, type RoleFlow } from './flows'
 
@@ -791,14 +791,14 @@ function PartnerDashboard({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNa
 type PartnerPageProps = { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav: (item: string) => void }
 
 // Compact KPI tile row, reused across the report pages.
-function StatTiles({ items }: { items: { label: string; value: string; sub?: string; icon?: string }[] }) {
+function StatTiles({ items }: { items: { label: string; value: ReactNode; sub?: string; icon?: string }[] }) {
   return <div className="pdash-kpis">{items.map((it) => (
     <div key={it.label} className="pdash-kpi"><div className="pdash-kpi-top"><span>{it.label}</span>{it.icon && <i>{it.icon}</i>}</div><strong>{it.value}</strong>{it.sub && <small>{it.sub}</small>}</div>
   ))}</div>
 }
 
 // Labeled horizontal bars (booth tiers, revenue per Expo, RFQ per Expo, ...).
-function MiniBars({ rows, labelWidth = 92 }: { rows: { label: string; value: number; display?: string; color?: string }[]; labelWidth?: number }) {
+function MiniBars({ rows, labelWidth = 92 }: { rows: { label: string; value: number; display?: ReactNode; color?: string }[]; labelWidth?: number }) {
   const max = Math.max(...rows.map((row) => row.value)) || 1
   return <div className="pdash-tiers">{rows.map((row) => (
     <div key={row.label} className="pdash-tier-row" style={{ gridTemplateColumns: `${labelWidth}px 1fr 64px` }}>
@@ -863,14 +863,14 @@ function PartnerEventPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNa
 }
 
 const SPONSORS = [
-  { name: 'Sai Gon An Thai', tier: 'Platinum', amount: '850M ₫', status: 'Paid' },
-  { name: 'Dong Tam Group', tier: 'Gold', amount: '480M ₫', status: 'Paid' },
-  { name: 'Rex Hotel Saigon', tier: 'Silver', amount: '190M ₫', status: 'Pending' },
+  { name: 'Sai Gon An Thai', tier: 'Platinum', amount: 850_000_000, status: 'Paid' },
+  { name: 'Dong Tam Group', tier: 'Gold', amount: 480_000_000, status: 'Paid' },
+  { name: 'Rex Hotel Saigon', tier: 'Silver', amount: 190_000_000, status: 'Pending' },
 ]
 const SPONSOR_PACKAGES = [
-  { tier: 'Platinum', price: '850M ₫', perks: ['Logo on 3D Expo entrance', 'Premium booth', '2 speaking slots', 'Homepage banner'] },
-  { tier: 'Gold', price: '480M ₫', perks: ['Logo in hall', 'Priority booth', '1 speaking slot'] },
-  { tier: 'Silver', price: '190M ₫', perks: ['Logo in sponsor list', 'Standard booth'] },
+  { tier: 'Platinum', price: 850_000_000, perks: ['Logo on 3D Expo entrance', 'Premium booth', '2 speaking slots', 'Homepage banner'] },
+  { tier: 'Gold', price: 480_000_000, perks: ['Logo in hall', 'Priority booth', '1 speaking slot'] },
+  { tier: 'Silver', price: 190_000_000, perks: ['Logo in sponsor list', 'Standard booth'] },
 ]
 
 function PartnerSponsorPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
@@ -880,12 +880,12 @@ function PartnerSponsorPage({ onLogoClick, onExpoConfig, onExpoOperation, onSite
       <div className="pdash-card-head"><strong>Sponsor list</strong><small>Sponsorship tier and payment status</small></div>
       <div className="enterprise-table-wrap"><table className="enterprise-table">
         <thead><tr><th>Sponsor</th><th>Tier</th><th>Amount</th><th>Payment</th></tr></thead>
-        <tbody>{SPONSORS.map((sponsor) => <tr key={sponsor.name}><td><strong>{sponsor.name}</strong></td><td>{sponsor.tier}</td><td>{sponsor.amount}</td><td><span className={sponsor.status === 'Paid' ? 'invite-status joined' : 'pending-status'}>{sponsor.status}</span></td></tr>)}</tbody>
+        <tbody>{SPONSORS.map((sponsor) => <tr key={sponsor.name}><td><strong>{sponsor.name}</strong></td><td>{sponsor.tier}</td><td><Money vnd={sponsor.amount} /></td><td><span className={sponsor.status === 'Paid' ? 'invite-status joined' : 'pending-status'}>{sponsor.status}</span></td></tr>)}</tbody>
       </table></div>
     </div>
     <div className="pdash-section-head" style={{ marginTop: 24 }}><h2>Sponsorship packages</h2></div>
     <div className="eco-grid pkg-grid focus-card" aria-label="Sponsorship packages">{SPONSOR_PACKAGES.map((pkg) => (
-      <article key={pkg.tier} className="pkg-card"><div className="pkg-head"><strong>{pkg.tier}</strong><b>{pkg.price}</b></div><ul>{pkg.perks.map((perk) => <li key={perk}>{perk}</li>)}</ul></article>
+      <article key={pkg.tier} className="pkg-card"><div className="pkg-head"><strong>{pkg.tier}</strong><b><Money vnd={pkg.price} /></b></div><ul>{pkg.perks.map((perk) => <li key={perk}>{perk}</li>)}</ul></article>
     ))}</div>
   </PartnerShell>
 }
@@ -909,32 +909,32 @@ function PartnerAroPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav 
 }
 
 const SETTLEMENTS = [
-  { period: 'Jun 2026', gross: '320M ₫', fee: '32M ₫', payout: '288M ₫', status: 'Paid' },
-  { period: 'Jul 2026', gross: '240M ₫', fee: '24M ₫', payout: '216M ₫', status: 'Processing' },
+  { period: 'Jun 2026', gross: 320_000_000, fee: 32_000_000, payout: 288_000_000, status: 'Paid' },
+  { period: 'Jul 2026', gross: 240_000_000, fee: 24_000_000, payout: 216_000_000, status: 'Processing' },
 ]
 
 function PartnerFinancialPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
   return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Credit & Revenue Reports" crumb={<><span>Data Center</span><b>›</b><strong>Financial Reports</strong></>}>
     <div className="detail-heading"><div><h1>Financial Reports</h1><p>Revenue and settlement across your Expo Programs.</p></div></div>
     <StatTiles items={[
-      { label: 'Total Revenue', value: '720M ₫', sub: '+14.6% vs prev', icon: '◈' },
-      { label: 'Booth Sales', value: '461M ₫', sub: '64% of revenue', icon: '◧' },
-      { label: 'Sponsorships', value: '187M ₫', sub: '26% of revenue', icon: '✦' },
-      { label: 'Add-on Services', value: '72M ₫', sub: '10% of revenue', icon: '▤' },
+      { label: 'Total Revenue', value: <Money vnd={720_000_000} />, sub: '+14.6% vs prev', icon: '◈' },
+      { label: 'Booth Sales', value: <Money vnd={461_000_000} />, sub: '64% of revenue', icon: '◧' },
+      { label: 'Sponsorships', value: <Money vnd={187_000_000} />, sub: '26% of revenue', icon: '✦' },
+      { label: 'Add-on Services', value: <Money vnd={72_000_000} />, sub: '10% of revenue', icon: '▤' },
     ]} />
     <div className="pdash-inventory" style={{ marginTop: 16 }}>
       <div className="pdash-card focus-card" aria-label="Revenue by Expo">
         <div className="pdash-card-head"><strong>Revenue by Expo</strong><small>Booth, sponsorship and add-on services</small></div>
         <MiniBars labelWidth={160} rows={[
-          { label: 'Vietnam Furniture Expo 2026', value: 470, display: '470M ₫', color: '#ff7a35' },
-          { label: 'HCMC Home & Living', value: 250, display: '250M ₫', color: '#7857d5' },
+          { label: 'Vietnam Furniture Expo 2026', value: 470, display: <Money vnd={470_000_000} />, color: '#ff7a35' },
+          { label: 'HCMC Home & Living', value: 250, display: <Money vnd={250_000_000} />, color: '#7857d5' },
         ]} />
       </div>
       <div className="pdash-card focus-card" aria-label="Settlement and payouts">
         <div className="pdash-card-head"><strong>Settlement and payouts</strong><small>What Arobid retains vs the Partner receives</small></div>
         <div className="enterprise-table-wrap"><table className="enterprise-table">
           <thead><tr><th>Period</th><th>Gross</th><th>Arobid fee</th><th>Partner payout</th><th>Status</th></tr></thead>
-          <tbody>{SETTLEMENTS.map((row) => <tr key={row.period}><td>{row.period}</td><td>{row.gross}</td><td>{row.fee}</td><td><strong>{row.payout}</strong></td><td><span className={row.status === 'Paid' ? 'invite-status joined' : 'invite-status opened'}>{row.status}</span></td></tr>)}</tbody>
+          <tbody>{SETTLEMENTS.map((row) => <tr key={row.period}><td>{row.period}</td><td><Money vnd={row.gross} /></td><td><Money vnd={row.fee} /></td><td><strong><Money vnd={row.payout} /></strong></td><td><span className={row.status === 'Paid' ? 'invite-status joined' : 'invite-status opened'}>{row.status}</span></td></tr>)}</tbody>
         </table></div>
       </div>
     </div>
@@ -983,7 +983,7 @@ function PartnerPostExpoPage({ onLogoClick, onExpoConfig, onExpoOperation, onSit
         { label: 'Exhibitors', value: '86', icon: '◧' },
         { label: 'Visitors', value: '12,480', icon: '◉' },
         { label: 'RFQs Generated', value: '396', icon: '▤' },
-        { label: 'Est. Deal Value', value: '850M ₫', icon: '◈' },
+        { label: 'Est. Deal Value', value: <Money vnd={850_000_000} />, icon: '◈' },
       ]} />
     </div>
     <div className="pdash-card focus-card export-card" aria-label="Export the report" style={{ marginTop: 16 }}>
@@ -1203,12 +1203,12 @@ function RfqHubDetail({ stage, onLogoClick, onBack, onNext }: { stage: RfqStage;
 
 function UserWorkspaceBoothConfig({ onLogoClick, onSave }: { onLogoClick: () => void; onSave: () => void }) {
   const productCatalog = [
-    { name: 'Tita Coffee - Traditional Roasted Robusta', category: 'Roasted Coffee', price: '68,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Tita Coffee - Roasted Robusta Coffee', category: 'Coffee Beans', price: '68,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Tita Coffee - Arabica Roasted Beans', category: 'Coffee Beans', price: '107,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Tita Coffee - Energy Blend Roasted', category: 'Roasted Coffee', price: '78,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'Tita Coffee - Premium Roasted Bean', category: 'Roasted Coffee', price: '82,000 ₫ / sack', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
-    { name: 'ORE Coffee - Instant Coffee', category: 'Instant Coffee', price: '95,000 ₫ / box', image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Traditional Roasted Robusta', category: 'Roasted Coffee', price: 68_000, unit: ' / sack', image: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Roasted Robusta Coffee', category: 'Coffee Beans', price: 68_000, unit: ' / sack', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Arabica Roasted Beans', category: 'Coffee Beans', price: 107_000, unit: ' / sack', image: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Energy Blend Roasted', category: 'Roasted Coffee', price: 78_000, unit: ' / sack', image: 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'Tita Coffee - Premium Roasted Bean', category: 'Roasted Coffee', price: 82_000, unit: ' / sack', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
+    { name: 'ORE Coffee - Instant Coffee', category: 'Instant Coffee', price: 95_000, unit: ' / box', image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=180&q=80', source: 'AI Onboarding' },
   ]
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
   const [selectedProductNames, setSelectedProductNames] = useState(productCatalog.slice(0, 3).map((product) => product.name))
@@ -1279,7 +1279,7 @@ function UserWorkspaceBoothConfig({ onLogoClick, onSave }: { onLogoClick: () => 
                   {selectedProducts.map((product) => (
                     <article key={product.name}>
                       <img src={product.image} alt="" />
-                      <div><strong>{product.name}</strong><small>{product.price}</small></div>
+                      <div><strong>{product.name}</strong><small><Money vnd={product.price} suffix={product.unit} /></small></div>
                       <span>✓</span>
                     </article>
                   ))}
@@ -1343,7 +1343,7 @@ function UserWorkspaceBoothConfig({ onLogoClick, onSave }: { onLogoClick: () => 
   )
 }
 
-function ProductSelectorModal({ products, selectedProductNames, onToggleProduct, onClose }: { products: Array<{ name: string; category: string; price: string; image: string; source: string }>; selectedProductNames: string[]; onToggleProduct: (productName: string) => void; onClose: () => void }) {
+function ProductSelectorModal({ products, selectedProductNames, onToggleProduct, onClose }: { products: Array<{ name: string; category: string; price: number; unit?: string; image: string; source: string }>; selectedProductNames: string[]; onToggleProduct: (productName: string) => void; onClose: () => void }) {
   return (
     <div className="template-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="product-selector-modal" role="dialog" aria-modal="true" aria-label="Select Product" onMouseDown={(event) => event.stopPropagation()}>
@@ -1371,7 +1371,7 @@ function ProductSelectorModal({ products, selectedProductNames, onToggleProduct,
                   <strong>{product.name}</strong>
                   <small>{product.category} · {product.source}</small>
                 </div>
-                <em>{product.price}</em>
+                <em><Money vnd={product.price} suffix={product.unit} /></em>
               </button>
             )
           })}
@@ -2016,9 +2016,9 @@ function TradeXpoPaymentSuccess({ onLogoClick, onBackToExpo, onCustomizeBooth }:
               </div>
 
               <div className="booking-price-box">
-                <p><span>Booth Price</span><b>VND 35.000.000</b></p>
-                <p className="discount"><span>Discount (20%)</span><b>- VND 7.000.000</b></p>
-                <strong><span>Total Paid</span><b>VND 28.000.000</b></strong>
+                <p><span>Booth Price</span><b><Money vnd={35_000_000} /></b></p>
+                <p className="discount"><span>Discount (20%)</span><b>- <Money vnd={7_000_000} /></b></p>
+                <strong><span>Total Paid</span><b><Money vnd={28_000_000} /></b></strong>
               </div>
             </div>
 
@@ -2098,13 +2098,13 @@ function TradeXpoSelectPosition({ onLogoClick, onBack, onPaymentSuccess }: { onL
                 </div>
                 <div className="tradecredit-row">
                   <span>₮</span>
-                  <div><b>VND 150 Off</b><small>Applied with your 3 TradeCredit</small></div>
+                  <div><b><Money vnd={150_000} /> Off</b><small>Applied with your 3 TradeCredit</small></div>
                   <button className={tradeCreditEnabled ? 'on' : ''} onClick={() => setTradeCreditEnabled((value) => !value)} aria-label="Toggle TradeCredit"><i /></button>
                 </div>
                 <div className="price-box">
-                  <p><span>Booth Price</span><b>VND 35.000.000</b></p>
-                  <p><span>Discount</span><b>{tradeCreditEnabled ? 'VND 150' : '-'}</b></p>
-                  <p><span>Total Amount</span><strong>{tradeCreditEnabled ? 'VND 34.999.850' : 'VND 35.000.000'}</strong></p>
+                  <p><span>Booth Price</span><b><Money vnd={35_000_000} /></b></p>
+                  <p><span>Discount</span><b>{tradeCreditEnabled ? <>- <Money vnd={150_000} /></> : '-'}</b></p>
+                  <p><span>Total Amount</span><strong><Money vnd={tradeCreditEnabled ? 34_850_000 : 35_000_000} /></strong></p>
                 </div>
                 <button className="payment-button" onClick={() => setQuickSignupOpen(true)}>Proceed to Payment</button>
                 <p className="terms-line">By clicking, I read &amp; accept with <u>Terms and Conditions</u></p>
@@ -2124,7 +2124,7 @@ function TradeXpoSelectPosition({ onLogoClick, onBack, onPaymentSuccess }: { onL
               <figure><img src="/tradexpo-summary-thumb.png" alt="" /><span>3D</span></figure>
               <h3>Premium</h3>
               <p>The ultimate choice for industry leaders aiming to become the exhibition's centerpiece while asserting global prestige.</p>
-              <strong>VND 35.000.000</strong>
+              <strong><Money vnd={35_000_000} /></strong>
               <ul>{boothBenefits.map((benefit) => <li key={benefit}>✓ {benefit}</li>)}</ul>
             </div>
           </section>

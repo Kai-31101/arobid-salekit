@@ -68,6 +68,36 @@ export function useLanguage() {
   }
 }
 
+// ---- Money formatting ------------------------------------------------------
+//
+// All amounts are stored as a base VND integer and rendered language-aware:
+//   VI -> "VND 35.000.000"  ('.' thousands, ',' decimal — vi-VN grouping)
+//   EN -> "USD 1,346.15"    (',' thousands, '.' decimal — en-US grouping),
+//         converted at VND_PER_USD, max 2 decimals.
+// Rendered inside a [data-no-i18n] span so the DOM-swap engine never touches it
+// — the value is already language-correct because <Money> subscribes to `lang`.
+
+export const VND_PER_USD = 26000
+
+export function formatMoney(vnd: number, lang: Lang): string {
+  if (lang === 'en') {
+    const usd = vnd / VND_PER_USD
+    return `USD ${usd.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  }
+  return `VND ${vnd.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}`
+}
+
+/** Language-aware money. `suffix` (e.g. " / sack") renders as a translatable sibling. */
+export function Money({ vnd, suffix }: { vnd: number; suffix?: string }) {
+  const { lang } = useLanguage()
+  return (
+    <>
+      <span data-no-i18n>{formatMoney(vnd, lang)}</span>
+      {suffix}
+    </>
+  )
+}
+
 // ---- Translation engine ----------------------------------------------------
 
 const TEXT_ORIG = new WeakMap<Text, string>()
