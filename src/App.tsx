@@ -42,7 +42,9 @@ export default function App() {
   // the demo-journey route (it runs its own guided glow) and inside the demo
   // iframe (the parent demo drives highlighting there).
   useEffect(() => {
-    if (pathname === '/demo-journey') return
+    // No intro glow on the demo-journey route (it runs its own guided glow) or on
+    // the role-selection home page (kept calm — no highlight animation there).
+    if (pathname === '/demo-journey' || pathname === '/') return
     if (window.self !== window.top) return
     let glowed: Element[] = []
     const sel = 'a[href], button, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select, [role="button"], label[class*="choose-file"], label[class*="upload"]'
