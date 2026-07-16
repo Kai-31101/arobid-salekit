@@ -96,14 +96,14 @@ const adminFlows: RoleFlow[] = [
   makeFlow({
     id: 'admin-create-expo', actor: 'Admin',
     nameVi: 'Tạo & cấu hình Expo', nameEn: 'Create & Configure an Expo',
-    descVi: 'Admin tạo Expo mới cho Partner: template, owner email, banner, category, thời gian, hall và số lượng booth.',
+    descVi: 'Chỉ vài bước, Admin dựng xong một Expo cho Partner: chọn template, gắn thương hiệu, phân khu booth và ấn định lịch tổ chức.',
     descEn: 'Admin creates a new Expo for a Partner: template, owner email, banner, category, schedule, hall and booth counts.',
     screenSteps: journeySegments.adminCreateExpo,
   }),
   makeFlow({
     id: 'admin-govern', actor: 'Admin',
-    nameVi: 'Duyệt & quản trị tham gia', nameEn: 'Govern Participation',
-    descVi: 'Admin duyệt Expo do Partner submit, quản lý doanh nghiệp tham gia và phân quyền trên từng tenant.',
+    nameVi: 'Duyệt & điều phối tham gia', nameEn: 'Govern Participation',
+    descVi: 'Admin phê duyệt các Expo do Partner gửi lên, quản lý doanh nghiệp tham gia và phân quyền trên từng tenant.',
     descEn: 'Admin approves Expos submitted by Partners, manages participating businesses and assigns permissions per tenant.',
     stages: [
       { en: 'Approval queue', vi: 'Hàng chờ duyệt',
@@ -120,7 +120,7 @@ const adminFlows: RoleFlow[] = [
   makeFlow({
     id: 'admin-monitor', actor: 'Admin',
     nameVi: 'Giám sát hiệu suất nền tảng', nameEn: 'Monitor Platform Performance',
-    descVi: 'Admin theo dõi số liệu toàn nền tảng: Expo đang chạy, doanh nghiệp tham gia, RFQ phát sinh và doanh thu.',
+    descVi: 'Toàn bộ sức khỏe nền tảng trong một màn hình: Expo đang chạy, doanh nghiệp tham gia, lượng RFQ và doanh thu.',
     descEn: 'Admin tracks platform-wide metrics: running Expos, participating businesses, RFQ volume and revenue.',
     stages: [
       { en: 'Platform overview', vi: 'Tổng quan nền tảng',
@@ -137,7 +137,7 @@ const partnerFlows: RoleFlow[] = [
   makeFlow({
     id: 'partner-ecosystem', actor: 'Partner',
     nameVi: 'Tổng quan Hệ sinh thái Arobid', nameEn: 'Ecosystem Overview',
-    descVi: 'Giới thiệu nhanh Marketplace, TradeXpo, Buyer Find & Match và ARO trong một hệ sinh thái thống nhất.',
+    descVi: 'Bốn mảnh ghép — Marketplace, TradeXpo, Buyer Find & Match và trợ lý ARO — cùng vận hành trong một hệ sinh thái thống nhất.',
     descEn: 'Quick intro to Marketplace, TradeXpo, Buyer Find & Match, and ARO in one unified ecosystem.',
     screenSteps: [
       { actor: 'Partner', action: 'Marketplace', screen: 'Arobid Ecosystem', path: P_ECOSYSTEM, focus: 'Marketplace',
@@ -157,7 +157,7 @@ const partnerFlows: RoleFlow[] = [
   makeFlow({
     id: 'partner-portal-init', actor: 'Partner',
     nameVi: 'Khởi tạo Portal cho Partner', nameEn: 'Portal Initialization',
-    descVi: 'Partner được cấp account cho 1 Hạ tầng (tenant) đã thiết lập sẵn → Sign in → Edit logo, Tên Partner, Banner, Hình ảnh, Mô tả ngắn → Homepage của tenant → Done.',
+    descVi: 'Partner nhận sẵn một tenant riêng, chỉ cần đăng nhập rồi gắn logo, tên, banner và vài dòng giới thiệu — cổng thương hiệu lên sóng ngay.',
     descEn: 'Partner gets an account for a pre-configured tenant → Sign in → Edit logo, partner name, banner, images, short description → tenant homepage → Done.',
     stages: [
       { en: 'Sign in to the tenant', vi: 'Đăng nhập vào tenant',
@@ -182,8 +182,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-member-dashboard', actor: 'Partner',
-    nameVi: 'Dashboard: Quản lý doanh nghiệp thành viên', nameEn: 'Member Dashboard',
-    descVi: 'Partner Site Management → Enterprises Management → Xem danh sách doanh nghiệp thành viên và trạng thái thành viên.',
+    nameVi: 'Quản lý doanh nghiệp thành viên', nameEn: 'Member Dashboard',
+    descVi: 'Toàn bộ doanh nghiệp trên tenant của Partner gói gọn một nơi — ai đã là thành viên, ai cần mời thêm đều thấy rõ.',
     descEn: "Partner Site Management → Enterprises Management → view the member business list and each business's membership status.",
     // Backed by the built Enterprises Management screen (the same page the Business
     // Invitation flow uses), narrated here as the read-only member dashboard: the
@@ -199,8 +199,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-business-invite', actor: 'Partner',
-    nameVi: 'Mời doanh nghiệp tham gia Hạ tầng số', nameEn: 'Business Invitation',
-    descVi: "Partner's Workspace → xem danh sách DN + email → Tick chọn → Xem nội dung email (Arobid soạn sẵn theo thông tin tenant) → Gửi mời hàng loạt.",
+    nameVi: 'Mời doanh nghiệp lên hạ tầng số', nameEn: 'Business Invitation',
+    descVi: 'Chọn doanh nghiệp cần mời, xem trước email Arobid đã soạn sẵn theo thương hiệu, rồi gửi lời mời hàng loạt chỉ trong một cú nhấp.',
     descEn: 'Partner Workspace → view business list + emails → tick to select → review the email (pre-written by Arobid with tenant info) → send bulk invitations.',
     // Tenant-level invitation, mirroring the Expo-level flow but on the Partner's own
     // infrastructure. These steps are authored here rather than spliced into
@@ -232,22 +232,22 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-expo-setup', actor: 'Partner',
-    nameVi: 'Thiết lập Digital Expo hợp tác', nameEn: 'Digital Expo Setup',
-    descVi: 'Partner mở Expo do Admin tạo, kiểm tra thông tin, preview template 3D và submit để chuyển sang trạng thái vận hành.',
+    nameVi: 'Thiết lập Digital Expo', nameEn: 'Digital Expo Setup',
+    descVi: 'Partner mở Expo Admin vừa tạo, kiểm tra thông tin, xem trước template 3D rồi submit để đưa vào vận hành.',
     descEn: 'Partner opens the Expo created by Admin, checks the details, previews the 3D template and submits it into the operating state.',
     screenSteps: journeySegments.partnerExpoConfig,
   }),
   makeFlow({
     id: 'partner-expo-invite', actor: 'Partner',
-    nameVi: 'Mời doanh nghiệp tham gia Digital Expo', nameEn: 'Expo Business Invitations',
-    descVi: 'Partner mở Expo đang vận hành, mời Exhibitor từ danh sách Arobid hoặc bằng email external, preview email rồi gửi hàng loạt.',
+    nameVi: 'Mời doanh nghiệp tham gia Expo', nameEn: 'Expo Business Invitations',
+    descVi: 'Từ Expo đang chạy, Partner mời Exhibitor có sẵn trên Arobid hoặc bằng email bên ngoài, xem trước nội dung rồi gửi hàng loạt.',
     descEn: 'Partner opens the operating Expo, invites Exhibitors from the Arobid list or by external email, previews the email and sends in bulk.',
     screenSteps: [...journeySegments.partnerOperation, ...journeySegments.partnerInvite],
   }),
   makeFlow({
     id: 'partner-event-management', actor: 'Partner',
-    nameVi: 'Dashboard: Quản lý events trong Expo', nameEn: 'Expo Event Management',
-    descVi: 'Workspace → Quản lý Expo → Xem lịch các event của 1 Expo + DN tham gia hoặc Speaker.',
+    nameVi: 'Quản lý sự kiện trong Expo', nameEn: 'Expo Event Management',
+    descVi: 'Toàn bộ lịch sự kiện của một Expo — hội thảo, lễ khai mạc, phiên kết nối B2B — cùng doanh nghiệp và speaker tham gia từng phiên.',
     descEn: "Workspace → Manage Expo → view an Expo's event schedule + participating businesses or speakers.",
     screenSteps: [
       { actor: 'Partner', action: 'Lịch sự kiện', screen: 'Event Management', path: P_EVENTS, focus: 'Event schedule',
@@ -260,8 +260,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-sponsor-management', actor: 'Partner',
-    nameVi: 'Dashboard: Quản lý nhà tài trợ', nameEn: 'Sponsor Management',
-    descVi: 'Workspace → Quản lý Expo → Xem danh sách nhà tài trợ + Gói tài trợ.',
+    nameVi: 'Quản lý nhà tài trợ', nameEn: 'Sponsor Management',
+    descVi: 'Danh sách nhà tài trợ cùng mức tài trợ, trạng thái thanh toán và quyền lợi từng gói — tất cả trong một bảng.',
     descEn: 'Workspace → Manage Expo → view sponsor list + sponsorship packages.',
     screenSteps: [
       { actor: 'Partner', action: 'Danh sách nhà tài trợ', screen: 'Sponsor Management', path: P_SPONSORS, focus: 'Sponsor list',
@@ -274,8 +274,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-expo-operations', actor: 'Partner',
-    nameVi: 'Dashboard: Vận hành Expo', nameEn: 'Expo Operations',
-    descVi: 'Workspace → Quản lý Expo → Xem toàn bộ các mục liên quan 1 Expo mà Partner có thể làm được, xem được.',
+    nameVi: 'Bảng điều hành Expo', nameEn: 'Expo Operations',
+    descVi: 'Trung tâm vận hành của một Expo: tỉ lệ lấp đầy booth, lưu lượng visitor và mọi việc Partner có thể theo dõi hay xử lý.',
     descEn: 'Workspace → Manage Expo → view everything related to an Expo the Partner can do or see.',
     screenSteps: journeySegments.partnerOperation,
     stages: [
@@ -289,8 +289,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-aro-ai', actor: 'Partner',
-    nameVi: 'ARO AI', nameEn: 'ARO AI',
-    descVi: 'Gắn link ARO. Show trực tiếp trên ARO theo các câu hỏi Partner muốn hỏi.',
+    nameVi: 'Trợ lý ARO AI', nameEn: 'ARO AI',
+    descVi: 'Hỏi ARO bằng ngôn ngữ tự nhiên, nhận câu trả lời ngay từ dữ liệu thật của bạn — kèm số liệu và nguồn, khỏi lật báo cáo.',
     descEn: 'Embed the ARO link. Show directly in ARO based on the questions the Partner wants to ask.',
     screenSteps: [
       { actor: 'Partner', action: 'Đặt câu hỏi cho ARO', screen: 'ARO AI', path: P_ARO, focus: 'Ask ARO a question',
@@ -303,8 +303,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-financial-reports', actor: 'Partner',
-    nameVi: 'Xem báo cáo tài chính', nameEn: 'Financial Reports',
-    descVi: 'Workspace → Mục Báo cáo tài chính → Xem báo cáo.',
+    nameVi: 'Báo cáo tài chính', nameEn: 'Financial Reports',
+    descVi: 'Doanh thu từng Expo — tiền booth, gói tài trợ, dịch vụ cộng thêm — cùng bảng đối soát phần Arobid giữ và phần Partner nhận.',
     descEn: 'Workspace → Financial Reports section → view reports.',
     screenSteps: [
       { actor: 'Partner', action: 'Doanh thu theo Expo', screen: 'Financial Reports', path: P_FINANCE, focus: 'Revenue by Expo',
@@ -317,8 +317,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-rfq-dealroom', actor: 'Partner',
-    nameVi: 'Dashboard RFQ · Deal Room / Expo', nameEn: 'RFQ / Deal Room Dashboard',
-    descVi: 'Workspace → Mục Deal Room → Xem báo cáo.',
+    nameVi: 'Bảng theo dõi RFQ & Deal Room', nameEn: 'RFQ / Deal Room Dashboard',
+    descVi: 'Số RFQ mỗi Expo tạo ra và các cuộc thương lượng đang mở — thước đo trực tiếp cho giá trị Expo mang lại cho doanh nghiệp.',
     descEn: 'Workspace → Deal Room section → view reports.',
     screenSteps: [
       { actor: 'Partner', action: 'Lượng RFQ theo Expo', screen: 'RFQ & Deal Room', path: P_RFQ, focus: 'RFQ volume per Expo',
@@ -331,8 +331,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-expo-dashboard', actor: 'Partner',
-    nameVi: 'Dashboard: Quản lý các Expo của Partner', nameEn: 'Expo Management Dashboard',
-    descVi: 'Workspace → Quản lý Expo → Xem toàn bộ Expo đang cấu hình và đang vận hành trong một chỗ.',
+    nameVi: 'Tổng quan các Expo', nameEn: 'Expo Management Dashboard',
+    descVi: 'Mọi Expo của Partner trên một màn hình — từ Draft, Upcoming, Live đến Archived.',
     descEn: 'Workspace → Manage Expo → see every Expo being configured and every Expo running, in one place.',
     screenSteps: [...journeySegments.partnerExpoConfig.slice(0, 1), ...journeySegments.partnerOperation.slice(0, 1)],
     stages: [
@@ -343,8 +343,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-post-expo', actor: 'Partner',
-    nameVi: 'Dashboard: Báo cáo sau Expo', nameEn: 'Post-Expo Reports',
-    descVi: 'Workspace → Quản lý Expo → Xem báo cáo số liệu sau Expo (Archived Expo).',
+    nameVi: 'Báo cáo sau Expo', nameEn: 'Post-Expo Reports',
+    descVi: 'Khi Expo khép lại, hệ thống tự tổng kết số Exhibitor, visitor, RFQ và giá trị giao dịch — sẵn sàng xuất báo cáo ROI.',
     descEn: 'Workspace → Manage Expo → view post-Expo report data (Archived Expo).',
     screenSteps: [
       { actor: 'Partner', action: 'Tổng kết sau Expo', screen: 'Post-Expo Reports', path: P_POST_EXPO, focus: 'Post-Expo summary',
@@ -357,8 +357,8 @@ const partnerFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'partner-journey-map', actor: 'Partner',
-    nameVi: 'Journey của Partner trên Arobid', nameEn: 'Partner Journey Map',
-    descVi: 'Team SAT tự tạo Journey để show: dạng flow of work.',
+    nameVi: 'Hành trình Partner trên Arobid', nameEn: 'Partner Journey Map',
+    descVi: 'Bốn chặng làm nên vòng đời một Partner: dựng hạ tầng, phát triển thành viên, vận hành Expo và khai thác doanh thu.',
     descEn: 'The SAT team builds a Journey to showcase — a flow-of-work view.',
     screenSteps: [
       { actor: 'Partner', action: 'Khởi tạo hạ tầng', screen: 'Partner Journey', path: P_JOURNEY, focus: 'Onboard the tenant',
@@ -380,15 +380,15 @@ const partnerFlows: RoleFlow[] = [
 const exhibitorFlows: RoleFlow[] = [
   makeFlow({
     id: 'exhibitor-ai-onboarding', actor: 'Exhibitor',
-    nameVi: 'AI Onboarding → Edit → Confirm', nameEn: 'AI Onboarding',
-    descVi: 'Doanh nghiệp onboarding bằng AI → Chỉnh sửa thông tin → Xác nhận hồ sơ.',
+    nameVi: 'Tạo hồ sơ bằng AI', nameEn: 'AI Onboarding',
+    descVi: 'AI tự dựng hồ sơ doanh nghiệp từ dữ liệu sẵn có — bạn chỉ chỉnh vài chi tiết và xác nhận là xong.',
     descEn: 'Business onboards via AI → edit the information → confirm the profile.',
     screenSteps: journeySegments.exhibitorAiOnboarding,
   }),
   makeFlow({
     id: 'exhibitor-expo-setup', actor: 'Exhibitor',
-    nameVi: 'Digital Expo: full flow 1 Expo (vai Exhibitor)', nameEn: 'Digital Expo Setup (Exhibitor)',
-    descVi: 'Booking Expo → Chọn loại booth → Thanh toán → Chọn mẫu 3D booth → Chọn sản phẩm tham gia → Set up màu theme + gắn Video & Banner → Xem trên Expo.',
+    nameVi: 'Dựng gian hàng số trong Expo (vai Exhibitor)', nameEn: 'Digital Expo Setup (Exhibitor)',
+    descVi: 'Từ đặt chỗ, chọn hạng booth và thanh toán, đến dựng booth 3D, chọn sản phẩm và trang trí video, banner — rồi lên sóng ngay trong Expo.',
     descEn: 'Book the Expo → choose booth type → pay → pick the 3D booth template → choose the products to show → set theme colour + add video & banner → view it on the Expo.',
     screenSteps: [
       ...journeySegments.exhibitorBooking,
@@ -398,8 +398,8 @@ const exhibitorFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'exhibitor-rfq-quote', actor: 'Exhibitor',
-    nameVi: 'Nhận RFQ & báo giá', nameEn: 'Receive RFQs & Quotations',
-    descVi: 'Mở 1 RFQ → Tạo báo giá → Nhập giá và các điều kiện khác nếu có → Send.',
+    nameVi: 'Nhận RFQ & gửi báo giá', nameEn: 'Receive RFQs & Quotations',
+    descVi: 'Mở một RFQ từ khách, tạo báo giá ngay trên đó, điền giá cùng điều kiện rồi gửi đi — không cần soạn file rời.',
     descEn: 'Open an RFQ → create a quotation → enter price and any other terms → send.',
     // The Expo-detail steps end at "Go to RFQ Center"; from there the flow continues
     // into the built RFQ Hub screens (from the Figma "Submit quotations" board):
@@ -428,8 +428,8 @@ const exhibitorFlows: RoleFlow[] = [
 const visitorFlows: RoleFlow[] = [
   makeFlow({
     id: 'visitor-expo-discovery', actor: 'Visitor',
-    nameVi: 'Digital Expo: khám phá toàn bộ 1 Expo (vai Visitor)', nameEn: 'Digital Expo Discovery (Visitor)',
-    descVi: 'Visitor vào Expo → Xem 3D và di chuyển, hoặc search thẳng Exhibitor / sản phẩm → Xem sản phẩm → Gửi RFQ → Chat follow up 24/7.',
+    nameVi: 'Khám phá Digital Expo (vai Visitor)', nameEn: 'Digital Expo Discovery (Visitor)',
+    descVi: 'Visitor bước vào Expo, dạo không gian 3D hoặc tìm thẳng Exhibitor và sản phẩm, gửi RFQ rồi chat tiếp 24/7.',
     descEn: 'Visitor enters the Expo → explores in 3D, or searches straight for an Exhibitor / product → views products → sends an RFQ → chat follow-up 24/7.',
     screenSteps: journeySegments.visitorDiscovery,
     stages: [
@@ -446,8 +446,8 @@ const visitorFlows: RoleFlow[] = [
   }),
   makeFlow({
     id: 'visitor-buyer-sourcing', actor: 'Visitor / Buyer',
-    nameVi: 'Buyer muốn đi sourcing', nameEn: 'Buyer Sourcing',
-    descVi: 'Vào Arobid → Search → chọn sản phẩm → Send RFQ → Workspace xem & quản lý RFQ → có noti → bấm xem báo giá.',
+    nameVi: 'Buyer đi tìm nguồn hàng', nameEn: 'Buyer Sourcing',
+    descVi: 'Buyer tìm sản phẩm trên Arobid, gửi RFQ tới nhiều nhà cung cấp cùng lúc, quản lý tại một nơi và nhận thông báo khi có báo giá.',
     descEn: 'Enter Arobid → search → choose products → send RFQ → view & manage RFQs in Workspace → get notified → view the quotation.',
     stages: [
       { en: 'Search the marketplace', vi: 'Search trên marketplace',
