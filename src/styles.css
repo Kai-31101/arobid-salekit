@@ -571,6 +571,43 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .flow-num { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; color: #ed6203; background: #fff2e8; border: 1px solid #ffd7bd; border-radius: 999px; font-size: 10px; font-weight: 800; }
 .role-flow-item small { display: block; margin-top: 4px; color: #71809a; font-size: 11px; line-height: 1.45; }
 
+/* Role selection — sticky search + role filter bar, and a searchable flow-card grid
+   (replaces the old accordion-of-role-cards). */
+.rs-controls { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin: 0 0 26px; padding: 14px; background: rgba(247,248,250,.92); backdrop-filter: blur(8px); border: 1px solid #e7ebf1; border-radius: 14px; }
+.rs-search { display: flex; align-items: center; gap: 8px; flex: 1 1 280px; min-width: 220px; padding: 0 12px; background: #fff; border: 1px solid #dfe4ec; border-radius: 10px; }
+.rs-search:focus-within { border-color: #ed6203; box-shadow: 0 0 0 3px rgba(237,98,3,.12); }
+.rs-search-icon { color: #9aa6bc; font-size: 17px; }
+.rs-search input { flex: 1; height: 42px; border: 0; outline: 0; background: transparent; color: #17253c; font-size: 14px; }
+.rs-search-clear { display: grid; place-items: center; width: 22px; height: 22px; color: #71809a; background: #eef1f6; border: 0; border-radius: 999px; font-size: 11px; cursor: pointer; }
+.rs-search-clear:hover { color: #17253c; background: #e2e7ef; }
+.rs-filter { display: flex; flex-wrap: wrap; gap: 8px; }
+.rs-chip { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; color: #46536b; background: #fff; border: 1px solid #dfe4ec; border-radius: 999px; font-size: 13px; font-weight: 650; cursor: pointer; }
+.rs-chip:hover { border-color: var(--accent, #ff9b64); color: #17253c; }
+.rs-chip i { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; color: #71809a; background: #eef1f6; border-radius: 999px; font-size: 10px; font-weight: 800; font-style: normal; }
+.rs-chip.active { color: #fff; background: var(--accent, #07184e); border-color: var(--accent, #07184e); }
+.rs-chip.active i { color: #fff; background: rgba(255,255,255,.26); }
+.rs-roles { display: grid; gap: 30px; text-align: left; }
+.rs-role-section { display: grid; gap: 14px; }
+.rs-role-header { display: flex; align-items: center; gap: 12px; }
+.rs-role-icon { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; color: #fff; border-radius: 11px; font-size: 19px; }
+.rs-role-header h2 { display: flex; align-items: center; gap: 9px; margin: 0; color: #16263e; font-size: 17px; }
+.rs-role-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; color: #46536b; background: #eef1f6; border-radius: 999px; font-size: 11px; font-weight: 800; font-style: normal; }
+.rs-role-header p { margin: 2px 0 0; color: #71809a; font-size: 12.5px; line-height: 1.4; }
+.rs-flow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 14px; }
+.rs-flow-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 16px 16px 14px; background: #fff; border: 1px solid #e4e9f1; border-radius: 14px; text-align: left; cursor: pointer; overflow: hidden; }
+.rs-flow-card:hover { border-color: var(--accent, #ed6203); }
+.rs-flow-card:focus-visible { outline: 2px solid var(--accent, #ed6203); outline-offset: 2px; }
+.rs-flow-top { display: flex; align-items: center; justify-content: space-between; }
+.rs-flow-badge { padding: 3px 9px; color: var(--accent, #ed6203); background: color-mix(in srgb, var(--accent, #ed6203) 13%, #fff); border-radius: 999px; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
+.rs-flow-num { color: #b6c0d1; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rs-flow-card strong { color: #17253c; font-size: 14px; font-weight: 680; line-height: 1.35; }
+.rs-flow-card small { flex: 1; color: #71809a; font-size: 12px; line-height: 1.5; }
+.rs-flow-run { color: var(--accent, #ed6203); font-size: 12px; font-weight: 800; }
+.rs-empty { display: grid; gap: 12px; place-items: center; padding: 60px 20px; color: #71809a; text-align: center; }
+.rs-empty span { font-size: 30px; }
+.rs-empty button { padding: 9px 18px; color: #fff; background: #ed6203; border: 0; border-radius: 999px; font-size: 13px; font-weight: 650; cursor: pointer; }
+@media (max-width: 560px) { .rs-controls { position: static; padding: 12px; } .rs-flow-grid { grid-template-columns: 1fr; } .rs-filter { width: 100%; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; } .rs-chip { flex: 0 0 auto; } }
+
 /* Concept screen — backdrop for flows whose real screens aren't built yet. Kept
    compact on purpose: findFocusElement skips any target larger than ~22% of the
    viewport, so a stage card must stay small enough for the demo glow to land. */
@@ -647,6 +684,19 @@ main :where(strong, b):not(h1 *):not(h2 *):not(h3 *):not(button *), .template-mo
 .lang-fab span.on { color: #07184e; background: linear-gradient(135deg, #ffc48a, #ff9e52); box-shadow: 0 2px 8px rgba(237,98,3,.4); }
 .lang-fab i { flex: 0 0 auto; width: 1px; height: 18px; background: rgba(255,255,255,.18); }
 @media (max-width: 640px) { .lang-fab { left: 16px; bottom: 18px; height: 36px; } .lang-fab span { height: 28px; min-width: 30px; font-size: 12px; padding: 0 8px; } }
+
+/* Role-selection header actions: guide button + inline language toggle.
+   The global floating .lang-fab is hidden on this page — the toggle lives in the header. */
+body:has(.role-selection-page) .lang-fab { display: none; }
+.role-topbar-actions { display: flex; align-items: center; gap: 12px; }
+.role-guide-btn { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 17px; color: #fff; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20); border-radius: 999px; font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
+.role-guide-btn:hover { background: rgba(255,255,255,.17); border-color: rgba(255,255,255,.32); }
+.role-guide-btn-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: 21px; height: 21px; color: #07184e; background: #fff; border-radius: 50%; font-size: 12px; font-weight: 800; font-style: normal; line-height: 1; }
+.role-lang-toggle { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 4px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20); border-radius: 999px; cursor: pointer; }
+.role-lang-toggle span { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 30px; padding: 0 9px; color: rgba(255,255,255,.62); border-radius: 999px; font-size: 12.5px; font-weight: 700; letter-spacing: .4px; }
+.role-lang-toggle span.on { color: #07184e; background: linear-gradient(135deg, #ffc48a, #ff9e52); box-shadow: 0 2px 8px rgba(237,98,3,.4); }
+.role-lang-toggle i { flex: 0 0 auto; width: 1px; height: 18px; background: rgba(255,255,255,.18); }
+@media (max-width: 640px) { .role-guide-btn { width: 40px; padding: 0; justify-content: center; } .role-guide-btn span:last-child { display: none; } .role-topbar-actions { gap: 8px; } }
 
 /* Center-bottom "Hướng dẫn sử dụng Sales Kit" guide button + overview popup */
 .salekit-guide-fab { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 0 22px; color: #fff; background: #64748b; border: 0; border-radius: 999px; box-shadow: 0 8px 20px rgba(15,23,42,.18); font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .2px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }

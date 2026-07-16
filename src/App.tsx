@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react'
 import { furnitureExpoMock, mockPartnerEmails, partnerTenantMock, mockMemberBusinesses, mockInvitationLog } from './mockData'
 import { buildEmailTemplateXlsx, extractEmailsFromFile } from './xlsx'
 import { useLanguage, Money } from './i18n'
@@ -2767,16 +2767,62 @@ function ConceptScreen({ flow, onLogoClick }: { flow: RoleFlow; onLogoClick: () 
   )
 }
 
+const ROLE_ACCENT: Record<string, string> = { Admin: '#7857d5', Partner: '#ed6203', Exhibitor: '#2f9e8f', Visitor: '#2f6fed' }
+
 function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
-  const { lang } = useLanguage()
-  const [expandedRoles, setExpandedRoles] = useState<string[]>([])
+  const { lang, toggle } = useLanguage()
+  const [roleFilter, setRoleFilter] = useState('All')
+  const [query, setQuery] = useState('')
   const [scriptOpen, setScriptOpen] = useState(false)
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const [guideOpen, setGuideOpen] = useState(false)
-  const toggleRole = (role: string) => setExpandedRoles((current) => current.includes(role) ? current.filter((item) => item !== role) : [...current, role])
+  const q = query.trim().toLowerCase()
+  const matchFlow = (flow: RoleFlow) => !q || [flow.nameEn, flow.nameVi, flow.descEn, flow.descVi].some((text) => text.toLowerCase().includes(q))
+  const roleCount = (role: string) => (role === 'All' ? roleDefs.flatMap((r) => r.flows) : roleDefs.find((r) => r.role === role)?.flows ?? []).filter(matchFlow).length
+  const totalMatches = roleDefs.filter((r) => roleFilter === 'All' || r.role === roleFilter).flatMap((r) => r.flows).filter(matchFlow).length
 
-  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><span className="role-tag">Interactive role walkthrough</span></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1 style={{ color: '#ED6203' }}>DEMO KIT</h1><p className="role-intro">Select a role to expand its flows, then run any flow as a guided walkthrough with realistic, pre-filled sample data.</p><p className="desktop-hint">💻 For the best experience, explore the journey on a desktop browser.</p><section className="role-grid">{roleDefs.map((item) => { const isExpanded = expandedRoles.includes(item.role); return <article key={item.role} className={`role-card ${isExpanded ? 'expanded' : ''}`}><button className="role-card-main" onClick={() => toggleRole(item.role)} aria-expanded={isExpanded}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p></button>{isExpanded && <div className="role-flow-list">{item.flows.map((flow, i) => <button key={flow.id} className="role-flow-item" onClick={() => onSelect(`/demo-journey/${flow.id}`)}><span className="role-flow-head"><span className="flow-num">{String(i + 1).padStart(2, '0')}</span><strong>{lang === 'en' ? flow.nameEn : flow.nameVi}</strong><span className="role-flow-run">▸</span></span><small>{lang === 'en' ? flow.descEn : flow.descVi}</small></button>)}</div>}</article> })}</section></main>
-    <button className="salekit-guide-fab" onClick={() => setGuideOpen(true)}><span className="salekit-guide-fab-icon" aria-hidden="true">i</span><span>{lang === 'vi' ? 'Hướng dẫn sử dụng Sales Kit' : 'Sales Kit User Guide'}</span></button>
+  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><div className="role-topbar-actions" data-no-i18n><button className="role-guide-btn" onClick={() => setGuideOpen(true)}><span className="role-guide-btn-icon" aria-hidden="true">i</span><span>{lang === 'vi' ? 'Hướng dẫn sử dụng Sales Kit' : 'Sales Kit User Guide'}</span></button><button className="role-lang-toggle" onClick={toggle} aria-label={lang === 'vi' ? 'Chuyển sang tiếng Anh' : 'Switch to Vietnamese'} title="VI / EN"><span className={lang === 'vi' ? 'on' : ''}>VI</span><i /><span className={lang === 'en' ? 'on' : ''}>EN</span></button></div></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1 style={{ color: '#ED6203' }}>DEMO KIT</h1><p className="role-intro">{lang === 'vi' ? 'Tìm kiếm hoặc lọc theo vai trò để chọn một flow, rồi chạy nó như một hướng dẫn trực quan với dữ liệu mẫu thực tế.' : 'Search or filter by role to find a flow, then run it as a guided walkthrough with realistic sample data.'}</p><p className="desktop-hint">💻 {lang === 'vi' ? 'Để có trải nghiệm tốt nhất, hãy khám phá trên trình duyệt máy tính.' : 'For the best experience, explore the journey on a desktop browser.'}</p>
+      <div className="rs-controls" data-no-i18n>
+        <label className="rs-search">
+          <span className="rs-search-icon" aria-hidden="true">⌕</span>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={lang === 'vi' ? 'Tìm flow theo tên hoặc mô tả…' : 'Search flows by name or description…'} aria-label={lang === 'vi' ? 'Tìm flow' : 'Search flows'} />
+          {query && <button type="button" className="rs-search-clear" onClick={() => setQuery('')} aria-label={lang === 'vi' ? 'Xóa tìm kiếm' : 'Clear search'}>✕</button>}
+        </label>
+        <div className="rs-filter" role="group" aria-label={lang === 'vi' ? 'Lọc theo vai trò' : 'Filter by role'}>
+          {['All', ...roleDefs.map((r) => r.role)].map((role) => (
+            <button key={role} type="button" className={`rs-chip ${roleFilter === role ? 'active' : ''}`} style={role === 'All' ? undefined : ({ '--accent': ROLE_ACCENT[role] } as CSSProperties)} onClick={() => setRoleFilter(role)} aria-pressed={roleFilter === role}>
+              {role === 'All' ? (lang === 'vi' ? 'Tất cả' : 'All') : role}<i>{roleCount(role)}</i>
+            </button>
+          ))}
+        </div>
+      </div>
+      {totalMatches === 0 ? (
+        <div className="rs-empty">
+          <span aria-hidden="true">🔍</span>
+          <p>{lang === 'vi' ? 'Không tìm thấy flow phù hợp.' : 'No flows match your search.'}</p>
+          <button type="button" onClick={() => { setQuery(''); setRoleFilter('All') }}>{lang === 'vi' ? 'Xóa bộ lọc' : 'Clear filters'}</button>
+        </div>
+      ) : (
+        <div className="rs-roles">{roleDefs.filter((r) => roleFilter === 'All' || r.role === roleFilter).map((item) => {
+          const accent = ROLE_ACCENT[item.role]
+          const flows = item.flows.map((flow, i) => ({ flow, n: i + 1 })).filter(({ flow }) => matchFlow(flow))
+          if (flows.length === 0) return null
+          return <section key={item.role} className="rs-role-section">
+            <header className="rs-role-header">
+              <span className="rs-role-icon" style={{ background: accent }}>{item.icon}</span>
+              <div><h2>{item.role}<i className="rs-role-count">{flows.length}</i></h2><p>{item.description}</p></div>
+            </header>
+            <div className="rs-flow-grid">{flows.map(({ flow, n }) => (
+              <button key={flow.id} className="rs-flow-card" style={{ '--accent': accent } as CSSProperties} onClick={() => onSelect(`/demo-journey/${flow.id}`)}>
+                <span className="rs-flow-top"><span className="rs-flow-badge">{item.role}</span><span className="rs-flow-num">{String(n).padStart(2, '0')}</span></span>
+                <strong>{lang === 'en' ? flow.nameEn : flow.nameVi}</strong>
+                <small>{lang === 'en' ? flow.descEn : flow.descVi}</small>
+                <span className="rs-flow-run">{lang === 'vi' ? 'Chạy' : 'Run'} ▸</span>
+              </button>
+            ))}</div>
+          </section>
+        })}</div>
+      )}</main>
     {guideOpen && <div className="guide-overlay" onClick={() => setGuideOpen(false)}>
       <div className="guide-card" onClick={(e) => e.stopPropagation()}>
         <button className="guide-close" onClick={() => setGuideOpen(false)} aria-label={lang === 'vi' ? 'Đóng' : 'Close'}>✕</button>
@@ -2807,7 +2853,6 @@ function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
         </div>
       </div>
     </div>}
-    <button className="script-fab" onClick={() => setScriptOpen(true)} aria-label="Show demo script"><span className="script-fab-icon" aria-hidden="true">▤</span><span>Show Script</span></button>
     {scriptOpen && <div className="script-overlay" onClick={() => setScriptOpen(false)}>
       <div className="script-panel" onClick={(e) => e.stopPropagation()}>
         <header className="script-panel-head"><div><h2>Demo Journey Script</h2><p>{demoScriptSteps.length} steps · jump to any screen the script is talking about.</p></div><button className="script-close" onClick={() => setScriptOpen(false)} aria-label="Close script">✕</button></header>
