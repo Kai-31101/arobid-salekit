@@ -3,7 +3,7 @@ import { furnitureExpoMock, mockPartnerEmails, partnerTenantMock, mockMemberBusi
 import { buildEmailTemplateXlsx, extractEmailsFromFile } from './xlsx'
 import { useLanguage, Money } from './i18n'
 import { demoScriptSteps, type DemoJourneyStep } from './demoScript'
-import { findFlow, roleDefs, type RoleFlow } from './flows'
+import { findFlow, roleDefs, roleWorkflows, type RoleFlow } from './flows'
 
 type Expo = {
   image: string
@@ -28,10 +28,11 @@ const menuItems = ['Dashboard', 'Users', 'Companies', 'Expos', 'Categories', 'Pa
 
 export default function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname)
+  const [search, setSearch] = useState(() => window.location.search)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
 
   useEffect(() => {
-    const onPopState = () => setPathname(window.location.pathname)
+    const onPopState = () => { setPathname(window.location.pathname); setSearch(window.location.search) }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
@@ -45,6 +46,11 @@ export default function App() {
     // No intro glow on the demo-journey route (it runs its own guided glow) or on
     // the role-selection home page (kept calm — no highlight animation there).
     if (pathname === '/demo-journey' || pathname === '/') return
+    // No intro glow on the Partner portal pages: navigating between them via the
+    // sidebar should switch calmly, without re-glowing every control each time.
+    if (pathname.startsWith('/partner/')) return
+    // The role workflow page is a calm selection screen — no control glow.
+    if (pathname.startsWith('/workflow/')) return
     if (window.self !== window.top) return
     let glowed: Element[] = []
     const sel = 'a[href], button, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select, [role="button"], label[class*="choose-file"], label[class*="upload"]'
@@ -71,7 +77,9 @@ export default function App() {
 
   const navigate = (path: string) => {
     window.history.pushState({}, '', path)
-    setPathname(path)
+    // Keep pathname query-free; expose the query separately (used for ?step= deep links).
+    setPathname(window.location.pathname)
+    setSearch(window.location.search)
   }
 
   // Clicking the logo always returns to the role selection (main) page. When a
@@ -92,7 +100,15 @@ export default function App() {
   // `/concept/<flowId>` is the backdrop screen its narration-only steps sit on.
   if (pathname.startsWith('/demo-journey/')) {
     const flow = findFlow(pathname.slice('/demo-journey/'.length))
-    if (flow) return <DemoJourney flow={flow} onExit={() => navigate('/')} />
+    // Finishing or exiting a flow returns to the role's workflow (stage) page it was
+    // launched from, not the home page.
+    if (flow) {
+      const role = roleDefs.find((r) => r.flows.some((f) => f.id === flow.id))?.role
+      const initialStep = Number(new URLSearchParams(search).get('step')) || 0
+      // Key by flow + step so choosing a different subtask (same flow, new ?step=)
+      // remounts the journey at that step.
+      return <DemoJourney key={`${flow.id}:${initialStep}`} flow={flow} initialStep={initialStep} onExit={() => navigate(role ? `/workflow/${role}` : '/')} />
+    }
   }
 
   if (pathname.startsWith('/concept/')) {
@@ -100,7 +116,20 @@ export default function App() {
     if (flow) return <ConceptScreen flow={flow} onLogoClick={goRoleSelection} />
   }
 
-  if (pathname !== '/demo-journey' && pathname !== '/admin/expo' && pathname !== '/admin/expo/create' && pathname !== '/partner/expos' && pathname !== '/partner/operation/expos' && pathname !== '/partner/dashboard' && pathname !== '/partner/ecosystem' && pathname !== '/partner/events' && pathname !== '/partner/sponsors' && pathname !== '/partner/aro' && pathname !== '/partner/financial-reports' && pathname !== '/partner/rfq-dealroom' && pathname !== '/partner/post-expo' && pathname !== '/partner/journey' && pathname !== '/partner/site/enterprises' && pathname !== '/partner/site/invitations' && pathname !== '/exhibitor/invitation' && pathname !== '/visitor/invitation' && pathname !== '/exhibitor/login' && pathname !== '/exhibitor/ai-onboarding' && pathname !== '/exhibitor/general-info' && pathname !== '/exhibitor/rfq-hub' && pathname !== '/exhibitor/rfq-hub/detail' && pathname !== '/exhibitor/rfq-hub/quote' && pathname !== '/exhibitor/rfq-hub/sent' && pathname !== '/user/workspace' && pathname !== '/user/workspace/expo-dashboard' && pathname !== `/user/workspace/expo-dashboard/${furnitureExpoMock.id}` && pathname !== '/tradexpo/select-booth-tier' && pathname !== '/tradexpo/expo-detail' && pathname !== '/tradexpo/select-position' && pathname !== '/tradexpo/payment-success' && pathname !== `/partner/expos/${furnitureExpoMock.id}` && pathname !== `/partner/operation/expos/${furnitureExpoMock.id}`) {
+  // Role workflow page: click a role on the home page → its flows laid out as a
+  // staged pipeline. Each flow card runs its guided demo.
+  if (pathname.startsWith('/workflow/')) {
+    const role = decodeURIComponent(pathname.slice('/workflow/'.length))
+    if (roleDefs.some((r) => r.role === role)) return <RoleWorkflowPage role={role} onSelect={navigate} onBack={() => navigate('/')} />
+  }
+
+  // Any Partner sidebar entry without a built screen lands here (see PARTNER_NAV_ROUTES).
+  if (pathname.startsWith('/partner/coming-soon/')) {
+    const item = decodeURIComponent(pathname.slice('/partner/coming-soon/'.length))
+    return <PartnerComingSoonPage item={item} onLogoClick={goRoleSelection} onExpoConfig={() => navigate('/partner/expos')} onExpoOperation={() => navigate('/partner/operation/expos')} onSiteNav={(navItem) => navigate(navItem === 'Invitations' ? '/partner/site/invitations' : '/partner/site/enterprises')} />
+  }
+
+  if (pathname !== '/demo-journey' && pathname !== '/admin/expo' && pathname !== '/admin/expo/create' && pathname !== '/partner/expos' && pathname !== '/partner/operation/expos' && pathname !== '/partner/dashboard' && pathname !== '/partner/ecosystem' && pathname !== '/partner/events' && pathname !== '/partner/sponsors' && pathname !== '/partner/aro' && pathname !== '/partner/financial-reports' && pathname !== '/partner/rfq-dealroom' && pathname !== '/partner/deal-room' && pathname !== '/partner/expo-dashboard' && pathname !== '/partner/post-expo' && pathname !== '/partner/expo-reports' && pathname !== '/partner/site/setting' && pathname !== '/partner/operation/live' && pathname !== '/partner/journey' && pathname !== '/partner/site/enterprises' && pathname !== '/partner/site/invitations' && pathname !== '/exhibitor/invitation' && pathname !== '/visitor/invitation' && pathname !== '/exhibitor/login' && pathname !== '/exhibitor/ai-onboarding' && pathname !== '/exhibitor/general-info' && pathname !== '/exhibitor/rfq-hub' && pathname !== '/exhibitor/rfq-hub/detail' && pathname !== '/exhibitor/rfq-hub/quote' && pathname !== '/exhibitor/rfq-hub/sent' && pathname !== '/user/workspace' && pathname !== '/user/workspace/expo-dashboard' && pathname !== `/user/workspace/expo-dashboard/${furnitureExpoMock.id}` && pathname !== '/tradexpo/select-booth-tier' && pathname !== '/tradexpo/expo-detail' && pathname !== '/tradexpo/select-position' && pathname !== '/tradexpo/payment-success' && pathname !== `/partner/expos/${furnitureExpoMock.id}` && pathname !== `/partner/operation/expos/${furnitureExpoMock.id}`) {
     return <RoleSelection onSelect={navigate} />
   }
 
@@ -193,7 +222,12 @@ export default function App() {
     if (pathname === '/partner/aro') return <PartnerAroPage {...partnerPageProps} />
     if (pathname === '/partner/financial-reports') return <PartnerFinancialPage {...partnerPageProps} />
     if (pathname === '/partner/rfq-dealroom') return <PartnerRfqDealroomPage {...partnerPageProps} />
+    if (pathname === '/partner/deal-room') return <PartnerDealRoomPage {...partnerPageProps} />
+    if (pathname === '/partner/expo-dashboard') return <PartnerExpoDashboardPage {...partnerPageProps} />
     if (pathname === '/partner/post-expo') return <PartnerPostExpoPage {...partnerPageProps} />
+    if (pathname === '/partner/expo-reports') return <PartnerExpoReportsPage {...partnerPageProps} />
+    if (pathname === '/partner/site/setting') return <PartnerSiteSettingPage {...partnerPageProps} />
+    if (pathname === '/partner/operation/live') return <PartnerExpoOperationsPage {...partnerPageProps} />
     if (pathname === '/partner/journey') return <PartnerJourneyPage {...partnerPageProps} />
   }
 
@@ -218,7 +252,7 @@ export default function App() {
   }
 
   if (pathname === `/partner/operation/expos/${furnitureExpoMock.id}`) {
-    return <PartnerExpoDetail showInvite onBack={() => navigate('/partner/operation/expos')} onLogoClick={goRoleSelection} onExpoConfig={() => navigate('/partner/expos')} onExpoOperation={() => navigate('/partner/operation/expos')} onSubmitApproval={() => navigate('/partner/operation/expos')} />
+    return <PartnerExpoOperationDetail onBack={() => navigate('/partner/operation/expos')} onLogoClick={goRoleSelection} onExpoConfig={() => navigate('/partner/expos')} onExpoOperation={() => navigate('/partner/operation/expos')} />
   }
 
   return (
@@ -272,10 +306,65 @@ function CreateExpoPage({ onBack, onSubmit, onLogoClick }: { onBack: () => void;
   </div>
 }
 
+// Operation view of an UPCOMING Expo. Instead of the config form, it shows the
+// Expo's report with every figure at 0 (the Expo hasn't started yet). The Invite
+// Exhibitor action stays, so the Partner can still invite exhibitors ahead of time.
+function PartnerExpoOperationDetail({ onBack, onLogoClick, onExpoConfig, onExpoOperation }: { onBack: () => void; onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void }) {
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const slots = furnitureExpoMock.halls[0].boothSlots
+  const totalBooths = slots.basic + slots.professional + slots.premium
+  return <div className="partner-app">
+    <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} />
+    <section className="partner-content">
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Overview</span><b>›</b><span>Expo List</span><b>›</b><strong>Expo Report</strong></div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header>
+      <main className="partner-main partner-detail-main">
+        <div className="detail-heading">
+          <div><h1>{furnitureExpoMock.name}</h1><p>▣ 12 Oct 2026, 09:00 – 16 Oct 2026, 18:00 <span className="upcoming-status">Upcoming</span></p></div>
+          <div className="detail-heading-actions">
+            <button onClick={onBack}>← Back to list</button>
+            <button className="invite-exhibitor-button" onClick={() => setInviteOpen(true)}>Invite Exhibitor</button>
+          </div>
+        </div>
+        <p className="finance-empty">This Expo is Upcoming — figures start updating once it goes live.</p>
+        <StatTiles items={[
+          { label: 'Total Views', value: <span data-no-i18n>0</span>, icon: '◉' },
+          { label: 'Booths sold', value: <span data-no-i18n>0 / {totalBooths}</span>, icon: '▧' },
+          { label: 'RFQs Created', value: <span data-no-i18n>0</span>, icon: '▤' },
+          { label: 'Est. Deal Value', value: <Money vnd={0} />, icon: '◈' },
+        ]} />
+        <div className="pdash-inventory" style={{ marginTop: 16 }}>
+          <div className="pdash-card focus-card" aria-label="Booth occupancy">
+            <div className="pdash-card-head"><strong>Booth occupancy</strong><small>Booths sold per tier</small></div>
+            <MiniBars labelWidth={120} rows={[
+              { label: 'Basic', value: 0, display: <span data-no-i18n>0 / {slots.basic}</span>, color: '#ff7a35' },
+              { label: 'Professional', value: 0, display: <span data-no-i18n>0 / {slots.professional}</span>, color: '#7857d5' },
+              { label: 'Premium', value: 0, display: <span data-no-i18n>0 / {slots.premium}</span>, color: '#2f9e8f' },
+            ]} />
+          </div>
+          <div className="pdash-card focus-card" aria-label="Live visitor traffic">
+            <div className="pdash-card-head"><strong>Live visitor traffic</strong><small>Most-visited booths right now</small></div>
+            <p className="finance-empty">No visitor traffic yet — the Expo hasn't opened.</p>
+          </div>
+        </div>
+      </main>
+    </section>
+    {inviteOpen && <InviteExhibitorModal onClose={() => setInviteOpen(false)} />}
+  </div>
+}
+
+// Extra Expos shown in the Partner Expo List for context. These are display-only —
+// only the Vietnam Furniture Expo above opens a detail screen in this demo.
+const EXTRA_PARTNER_EXPOS = [
+  { name: 'HCMC Home & Living', date: '5 Aug 2026, 09:00 – 8 Aug 2026, 18:00', status: 'Upcoming', img: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=240&q=80', views: 3120, booths: '84 / 120', rfqs: 168, chat: 22 },
+  { name: 'Vietnam Manufacturing Expo 2026', date: '12 Aug 2026, 09:00 – 14 Aug 2026, 18:00', status: 'Live', img: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=240&q=80', views: 18640, booths: '210 / 220', rfqs: 512, chat: 96 },
+  { name: 'Smart Retail & Commerce Expo', date: '20 Jul 2026, 09:00 – 22 Jul 2026, 18:00', status: 'Draft', img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=240&q=80', views: 0, booths: '0 / 180', rfqs: 0, chat: 0 },
+]
+const EXPO_STATUS_CLASS: Record<string, string> = { Live: 'live-status', Upcoming: 'upcoming-status', Draft: 'draft-status', Archived: 'draft-status' }
+
 function PartnerExpoList({ mode, onOpen, onLogoClick, onExpoConfig, onExpoOperation }: { mode: 'config' | 'operation'; onOpen: () => void; onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void }) {
   const totalBooths = Object.values(furnitureExpoMock.halls[0].boothSlots).reduce((total, quantity) => total + quantity, 0)
   const status = mode === 'operation' ? 'Upcoming' : 'Draft'
-  return <div className="partner-app"><PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} /><section className="partner-content"><header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Overview</span><b>›</b><strong>Expo List</strong></div><span className="partner-notification">♧<i>1</i></span></header><main className="partner-main"><h1>Expo List</h1><div className="partner-filters"><label>⌕<input placeholder="Expo name..." /></label><select defaultValue="All Status"><option>All Status</option><option>Draft</option><option>Upcoming</option><option>Pending Review</option><option>Live</option></select></div><article className="partner-expo-card" onClick={onOpen} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && onOpen()}><img src={furnitureExpoMock.thumbnailUrl} alt="Furniture Expo" /><div className="partner-expo-info"><div className="partner-title-row"><div><h2>{furnitureExpoMock.name}</h2><p>▣ 12 Oct 2026, 09:00 – 16 Oct 2026, 18:00</p></div><span className={mode === 'operation' ? 'upcoming-status' : 'draft-status'}>{status}</span></div><div className="partner-metrics"><div><span>◉</span><b>Total Views</b><strong>0</strong></div><div><span>▧</span><b>Booths</b><strong>0 / {totalBooths}</strong></div><div><span>▤</span><b>RFQs Created</b><strong>0</strong></div><div><span>▢</span><b>Chat Now</b><strong>0</strong></div></div></div></article></main></section></div>
+  return <div className="partner-app"><PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} /><section className="partner-content"><header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Overview</span><b>›</b><strong>Expo List</strong></div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header><main className="partner-main"><h1>Expo List</h1><div className="partner-filters"><label>⌕<input placeholder="Expo name..." /></label><select defaultValue="All Status"><option>All Status</option><option>Draft</option><option>Upcoming</option><option>Pending Review</option><option>Live</option></select></div><div className="partner-expo-list"><article className="partner-expo-card" onClick={onOpen} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && onOpen()}><img src={furnitureExpoMock.thumbnailUrl} alt="Furniture Expo" /><div className="partner-expo-info"><div className="partner-title-row"><div><h2>{furnitureExpoMock.name}</h2><p>▣ 12 Oct 2026, 09:00 – 16 Oct 2026, 18:00</p></div><span className={mode === 'operation' ? 'upcoming-status' : 'draft-status'}>{status}</span></div><div className="partner-metrics"><div><span>◉</span><b>Total Views</b><strong>0</strong></div><div><span>▧</span><b>Booths</b><strong>0 / {totalBooths}</strong></div><div><span>▤</span><b>RFQs Created</b><strong>0</strong></div><div><span>▢</span><b>Chat Now</b><strong>0</strong></div></div></div></article>{EXTRA_PARTNER_EXPOS.map((expo) => <article key={expo.name} className="partner-expo-card static"><img src={expo.img} alt={expo.name} /><div className="partner-expo-info"><div className="partner-title-row"><div><h2>{expo.name}</h2><p>▣ {expo.date}</p></div><span className={EXPO_STATUS_CLASS[expo.status]}>{expo.status}</span></div><div className="partner-metrics"><div><span>◉</span><b>Total Views</b><strong data-no-i18n>{expo.views.toLocaleString('en-US')}</strong></div><div><span>▧</span><b>Booths</b><strong data-no-i18n>{expo.booths}</strong></div><div><span>▤</span><b>RFQs Created</b><strong data-no-i18n>{expo.rfqs}</strong></div><div><span>▢</span><b>Chat Now</b><strong data-no-i18n>{expo.chat}</strong></div></div></div></article>)}</div></main></section></div>
 }
 
 function PartnerExpoDetail({ showInvite, onBack, onLogoClick, onExpoConfig, onExpoOperation, onSubmitApproval }: { showInvite: boolean; onBack: () => void; onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSubmitApproval: () => void }) {
@@ -283,7 +372,7 @@ function PartnerExpoDetail({ showInvite, onBack, onLogoClick, onExpoConfig, onEx
   const [inviteOpen, setInviteOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const notify = (message: string) => window.alert(message)
-  return <div className="partner-app"><PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} /><section className="partner-content"><header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Overview</span><b>›</b><span>Expo List</span><b>›</b><strong>Expo Detail</strong></div><span className="partner-notification">♧<i>1</i></span></header><main className="partner-main partner-detail-main"><div className="detail-heading"><div><h1>Expo Detail</h1><p>{isEditing ? 'Editing mode is enabled for this demo.' : 'Manage basic information for this expo.'}</p></div><button onClick={onBack}>← Back to list</button></div><section className="detail-card"><div className="detail-card-header"><h2>Basic Information</h2>{showInvite && <button className="invite-exhibitor-button" onClick={() => setInviteOpen(true)}>Invite Exhibitor</button>}</div><div className="detail-basic"><div className="detail-thumb"><label>Thumbnail <b>*</b><small>(500×500px, max 5MB)</small></label><img src={furnitureExpoMock.thumbnailUrl} alt="Furniture Expo thumbnail" /><button onClick={() => notify('Mock action: thumbnail picker would open here.')}>✎</button></div><div className="detail-fields"><label>Exhibition Name <b>*</b><input defaultValue={furnitureExpoMock.name} readOnly={!isEditing && showInvite} /></label><label>Description <b>*</b><textarea defaultValue={furnitureExpoMock.description} rows={3} readOnly={!isEditing && showInvite} /></label><label>Category (Level 2) <b>*</b><div className="detail-chip-field"><span>{furnitureExpoMock.category} ×</span><i>⌄</i></div></label><div className="detail-date-grid"><label>Start Date <b>*</b><input type="datetime-local" defaultValue={`${furnitureExpoMock.startDate}T${furnitureExpoMock.startTime}`} readOnly={!isEditing && showInvite} /></label><label>End Date <b>*</b><input type="datetime-local" defaultValue={`${furnitureExpoMock.endDate}T${furnitureExpoMock.endTime}`} readOnly={!isEditing && showInvite} /></label></div><div><p className="detail-label">3D Template <b>*</b></p><button className="template-preview-card" onClick={() => setTemplateOpen(true)}><img src={furnitureExpoMock.templatePreviewUrl} alt={furnitureExpoMock.templateName} /><span><strong>{furnitureExpoMock.templateName}</strong><small>Click to preview 3D expo map</small></span></button></div><div className="detail-banner"><label>Banner <b>*</b><small>(1080×608px, max 10MB)</small></label><img src={furnitureExpoMock.thumbnailUrl} alt="Furniture Expo banner" /><button onClick={() => notify('Mock action: banner picker would open here.')}>✎</button></div></div></div><div className="detail-actions"><button onClick={onBack}>Cancel</button><div>{showInvite ? <><button onClick={() => setIsEditing(true)}>Edit Details</button><button className="detail-submit" onClick={() => notify('Mock action: expo has been re-submitted for approval.')}>Re-Submit for Approval</button></> : <><button onClick={() => notify('Mock action: draft saved for Partner review.')}>Save Draft</button><button className="detail-submit" onClick={onSubmitApproval}>Submit for Approval</button></>}</div></div></section></main></section>{templateOpen && <ExpoTemplateModal onClose={() => setTemplateOpen(false)} />}{inviteOpen && <InviteExhibitorModal onClose={() => setInviteOpen(false)} />}</div>
+  return <div className="partner-app"><PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} /><section className="partner-content"><header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Overview</span><b>›</b><span>Expo List</span><b>›</b><strong>Expo Detail</strong></div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header><main className="partner-main partner-detail-main"><div className="detail-heading"><div><h1>Expo Detail</h1><p>{isEditing ? 'Editing mode is enabled for this demo.' : 'Manage basic information for this expo.'}</p></div><button onClick={onBack}>← Back to list</button></div><section className="detail-card"><div className="detail-card-header"><h2>Basic Information</h2>{showInvite && <button className="invite-exhibitor-button" onClick={() => setInviteOpen(true)}>Invite Exhibitor</button>}</div><div className="detail-basic"><div className="detail-thumb"><label>Thumbnail <b>*</b><small>(500×500px, max 5MB)</small></label><img src={furnitureExpoMock.thumbnailUrl} alt="Furniture Expo thumbnail" /><button onClick={() => notify('Mock action: thumbnail picker would open here.')}>✎</button></div><div className="detail-fields"><label>Exhibition Name <b>*</b><input defaultValue={furnitureExpoMock.name} readOnly={!isEditing && showInvite} /></label><label>Description <b>*</b><textarea defaultValue={furnitureExpoMock.description} rows={3} readOnly={!isEditing && showInvite} /></label><label>Category (Level 2) <b>*</b><div className="detail-chip-field"><span>{furnitureExpoMock.category} ×</span><i>⌄</i></div></label><div className="detail-date-grid"><label>Start Date <b>*</b><input type="datetime-local" defaultValue={`${furnitureExpoMock.startDate}T${furnitureExpoMock.startTime}`} readOnly={!isEditing && showInvite} /></label><label>End Date <b>*</b><input type="datetime-local" defaultValue={`${furnitureExpoMock.endDate}T${furnitureExpoMock.endTime}`} readOnly={!isEditing && showInvite} /></label></div><div><p className="detail-label">3D Template <b>*</b></p><button className="template-preview-card" onClick={() => setTemplateOpen(true)}><img src={furnitureExpoMock.templatePreviewUrl} alt={furnitureExpoMock.templateName} /><span><strong>{furnitureExpoMock.templateName}</strong><small>Click to preview 3D expo map</small></span></button></div><div className="detail-banner"><label>Banner <b>*</b><small>(1080×608px, max 10MB)</small></label><img src={furnitureExpoMock.thumbnailUrl} alt="Furniture Expo banner" /><button onClick={() => notify('Mock action: banner picker would open here.')}>✎</button></div></div></div><div className="detail-actions"><button onClick={onBack}>Cancel</button><div>{showInvite ? <><button onClick={() => setIsEditing(true)}>Edit Details</button><button className="detail-submit" onClick={() => notify('Mock action: expo has been re-submitted for approval.')}>Re-Submit for Approval</button></> : <><button onClick={() => notify('Mock action: draft saved for Partner review.')}>Save Draft</button><button className="detail-submit" onClick={onSubmitApproval}>Submit for Approval</button></>}</div></div></section></main></section>{templateOpen && <ExpoTemplateModal onClose={() => setTemplateOpen(false)} />}{inviteOpen && <InviteExhibitorModal onClose={() => setInviteOpen(false)} />}</div>
 }
 
 function ExpoTemplateModal({ onClose }: { onClose: () => void }) {
@@ -443,7 +532,9 @@ function InviteExhibitorModal({ onClose, variant = 'exhibitor', initialEmails, o
                     {isBusiness
                       ? <p>Hello, your business is invited to join the digital infrastructure of the Tay Bac Sai Gon Business Association on Arobid. Click the button below to activate your company profile, publish products, and join the association's expos.</p>
                       : <p>Hello, you are invited to register as an exhibitor for Vietnam Furniture Expo 2026. Click the button below to start onboarding and reserve your booth.</p>}
-                    <button>Join</button>
+                    {/* The Join CTA differs by invitation type: a Partner Site invite opens
+                        the tenant's public site (taybacsaigon); an Expo invite opens the Expo. */}
+                    <button onClick={() => window.open(isBusiness ? partnerTenantMock.portalUrl : `${window.location.origin}/tradexpo/select-booth-tier`, '_blank', 'noopener,noreferrer')}>Join</button>
                   </div>
                   <p className="email-note">Note: Email template will be modified by Arobid based on Partner requirement.</p>
                 </div>
@@ -482,14 +573,51 @@ function ExpoHallTemplate({ name, type, selected }: { name: string; type: 'stand
 // the top-level items) and suppresses the default "Expo Settings" highlight — used by
 // the concept-flow pages so each lands on its own sidebar entry. `siteActiveItem` and
 // `overviewActive` remain for the Site Management / Overview pages.
+// Sidebar items with a built screen route there; everything else lands on the
+// shared "coming soon" page so no nav entry is a dead end.
+const PARTNER_NAV_ROUTES: Record<string, string> = {
+  Overview: '/partner/journey',
+  'Deal Room': '/partner/deal-room',
+  Dashboard: '/partner/expo-dashboard',
+  'Event Management': '/partner/events',
+  'Expo Settings': '/partner/expos',
+  'RFQ & Deal Room': '/partner/rfq-dealroom',
+  'Expo Reports': '/partner/expo-reports',
+  'Credit & Revenue Reports': '/partner/financial-reports',
+  'Enterprises Management': '/partner/site/enterprises',
+  Invitations: '/partner/site/invitations',
+  'Site Setting': '/partner/site/setting',
+}
+
 function PartnerSidebar({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav, siteActiveItem, overviewActive, activeNav }: { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav?: (item: string) => void; siteActiveItem?: string; overviewActive?: boolean; activeNav?: string }) {
   const [roleOpen, setRoleOpen] = useState(false)
   const suppressDefault = Boolean(siteActiveItem || overviewActive || activeNav)
   const groupActive = (items: string[]) => (activeNav && items.includes(activeNav) ? activeNav : undefined)
-  const expoItems = ['Dashboard', 'Expo Settings', 'Invitations']
+  const expoItems = ['Dashboard', 'Event Management', 'Expo Settings', 'RFQ & Deal Room']
   const dataItems = ['Enterprise Reports', 'Expo Reports', 'Trade Reports', 'Credit & Revenue Reports', 'Buyer Lead Reports']
   const bundleItems = ['Bundle Creation', 'Bundle Pricing']
-  return <aside className="partner-sidebar"><button className="partner-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /></button><div className="portal-label">Partner Portal</div><nav className="partner-nav"><div className={`partner-nav-item ${overviewActive || activeNav === 'Overview' ? 'active' : ''}`}><span>▦</span>Overview</div><div className={`partner-nav-item ${activeNav === 'Deal Room' ? 'active' : ''}`}><span>◌</span>Deal Room</div><PartnerNavGroup icon="♧" label="Partner Site Management" items={['Site Setting', 'Enterprises Management', 'Invitations']} activeItem={siteActiveItem ?? groupActive(['Site Setting', 'Enterprises Management', 'Invitations'])} onSelect={onSiteNav} /><PartnerNavGroup icon="◉" label="Expo Programs" items={expoItems} activeItem={suppressDefault ? groupActive(expoItems) : 'Expo Settings'} /><PartnerNavGroup icon="▤" label="Bundle Management" items={bundleItems} activeItem={groupActive(bundleItems)} /><PartnerNavGroup icon="⊞" label="Data Center" items={dataItems} activeItem={groupActive(dataItems)} /><div className={`partner-nav-item ${activeNav === 'TradeCredit Wallet' ? 'active' : ''}`}><span>▢</span>TradeCredit Wallet</div></nav><div className="partner-profile-wrap"><button className="partner-profile" onClick={() => setRoleOpen(!roleOpen)} aria-expanded={roleOpen}><span>Logo</span><div><strong>Tenant Partner Admin</strong><small>{furnitureExpoMock.ownerEmail}</small></div><b>›</b></button>{roleOpen && <div className="partner-role-menu profile-role-menu"><button onClick={onExpoConfig}><strong>Expo Config</strong><small>Configure expo setup and draft content</small></button><button onClick={onExpoOperation}><strong>Expo Operation</strong><small>Operate approved and upcoming expos</small></button></div>}</div></aside>
+  // Navigate from the sidebar itself: pushState + a synthetic popstate so the App
+  // root (which owns `pathname` state) re-renders — the sidebar has no `navigate`.
+  // When the sidebar is shown INSIDE the demo-journey iframe, drive the TOP window
+  // instead of the iframe, so the address bar reflects the page you land on (each
+  // tab gets its own real, reload-safe URL) rather than staying on the demo URL.
+  const goNav = (item: string) => {
+    const path = PARTNER_NAV_ROUTES[item] ?? `/partner/coming-soon/${encodeURIComponent(item)}`
+    let w: Window = window
+    try { if (window.top && window.top !== window.self) w = window.top } catch { /* cross-origin: navigate locally */ }
+    w.history.pushState({}, '', path)
+    w.dispatchEvent(new PopStateEvent('popstate'))
+  }
+  return <aside className="partner-sidebar"><button className="partner-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /></button><div className="portal-label">Partner Portal</div><nav className="partner-nav"><button className={`partner-nav-item ${overviewActive || activeNav === 'Overview' ? 'active' : ''}`} onClick={() => goNav('Overview')}><span>▦</span>Overview</button><button className={`partner-nav-item ${activeNav === 'Deal Room' ? 'active' : ''}`} onClick={() => goNav('Deal Room')}><span>◌</span>Deal Room</button><PartnerNavGroup icon="♧" label="Partner Site Management" items={['Site Setting', 'Enterprises Management', 'Invitations']} activeItem={siteActiveItem ?? groupActive(['Site Setting', 'Enterprises Management', 'Invitations'])} onSelect={goNav} /><PartnerNavGroup icon="◉" label="Expo Programs" items={expoItems} activeItem={suppressDefault ? groupActive(expoItems) : 'Expo Settings'} onSelect={goNav} /><PartnerNavGroup icon="▤" label="Bundle Management" items={bundleItems} activeItem={groupActive(bundleItems)} onSelect={goNav} /><PartnerNavGroup icon="⊞" label="Data Center" items={dataItems} activeItem={groupActive(dataItems)} onSelect={goNav} /><button className={`partner-nav-item ${activeNav === 'TradeCredit Wallet' ? 'active' : ''}`} onClick={() => goNav('TradeCredit Wallet')}><span>▢</span>TradeCredit Wallet</button></nav><div className="partner-profile-wrap"><button className="partner-profile" onClick={() => setRoleOpen(!roleOpen)} aria-expanded={roleOpen}><span>Logo</span><div><strong>Tenant Partner Admin</strong><small>{furnitureExpoMock.ownerEmail}</small></div><b>›</b></button>{roleOpen && <div className="partner-role-menu profile-role-menu"><button onClick={onExpoConfig}><strong>Expo Config</strong><small>Configure expo setup and draft content</small></button><button onClick={onExpoOperation}><strong>Expo Operation</strong><small>Operate approved and upcoming expos</small></button></div>}</div></aside>
+}
+
+// VI/EN toggle that lives in the page header (partner topbar). Self-contained so it
+// can be dropped into any header without threading language props through the page.
+function HeaderLangToggle() {
+  const { lang, toggle } = useLanguage()
+  return <button type="button" className="header-lang-toggle" data-no-i18n onClick={toggle} aria-label={lang === 'vi' ? 'Chuyển sang tiếng Anh' : 'Switch to Vietnamese'} title="VI / EN">
+    <span className={lang === 'vi' ? 'on' : ''}>VI</span><i /><span className={lang === 'en' ? 'on' : ''}>EN</span>
+  </button>
 }
 
 // Shared shell for the concept-flow pages: the Partner sidebar + topbar + main column,
@@ -498,7 +626,7 @@ function PartnerShell({ crumb, activeNav, onLogoClick, onExpoConfig, onExpoOpera
   return <div className="partner-app">
     <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav={activeNav} />
     <section className="partner-content">
-      <header className="partner-topbar"><span>◧</span><div className="partner-crumb">{crumb}</div><span className="partner-notification">♧<i>1</i></span></header>
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb">{crumb}</div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header>
       <main className="partner-main pdash-main">{children}</main>
     </section>
   </div>
@@ -526,7 +654,7 @@ function PartnerEnterprisesPage({ onLogoClick, onExpoConfig, onExpoOperation, on
   return <div className="partner-app">
     <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} siteActiveItem="Enterprises Management" />
     <section className="partner-content">
-      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Partner Site Management</span><b>›</b><strong>Enterprises Management</strong></div><span className="partner-notification">♧<i>1</i></span></header>
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Partner Site Management</span><b>›</b><strong>Enterprises Management</strong></div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header>
       <main className="partner-main">
         <div className="detail-heading">
           <div><h1>Enterprises Management</h1><p>Businesses on the digital infrastructure of {partnerTenantMock.name}.</p></div>
@@ -573,7 +701,7 @@ function PartnerInvitationsPage({ onLogoClick, onExpoConfig, onExpoOperation, on
   return <div className="partner-app">
     <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} siteActiveItem="Invitations" />
     <section className="partner-content">
-      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Partner Site Management</span><b>›</b><strong>Invitations</strong></div><span className="partner-notification">♧<i>1</i></span></header>
+      <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><span>Partner Site Management</span><b>›</b><strong>Invitations</strong></div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header>
       <main className="partner-main">
         <div className="detail-heading">
           <div><h1>Invitations</h1><p>Every invitation sent to join {partnerTenantMock.name}.</p></div>
@@ -601,6 +729,60 @@ function PartnerInvitationsPage({ onLogoClick, onExpoConfig, onExpoOperation, on
       </main>
     </section>
   </div>
+}
+
+// Partner Site Management → Site Setting. Brand the tenant's public site: logo,
+// name, tagline, homepage banner, theme colour and domain — the branding the
+// Portal Initialization flow describes, as a real settings screen.
+function PartnerSiteSettingPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  // Open the live tenant portal in a NEW BACKGROUND tab without switching to it.
+  // A Ctrl/Cmd-click on a real, DOM-attached anchor is the most reliable way to get
+  // the browser's "open in background tab" behaviour (plain window.open foregrounds
+  // it); we keep focus on the current window afterwards.
+  const previewSiteInBackground = () => {
+    const a = document.createElement('a')
+    a.href = partnerTenantMock.portalUrl
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.dispatchEvent(new MouseEvent('click', { ctrlKey: true, metaKey: true, bubbles: true, cancelable: true, view: window }))
+    document.body.removeChild(a)
+    window.focus()
+  }
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Site Setting" crumb={<><span>Partner Site Management</span><b>›</b><strong>Site Setting</strong></>}>
+    <div className="detail-heading">
+      <div><h1>Site Setting</h1><p>Brand the public site of {partnerTenantMock.name}.</p></div>
+      <div className="detail-heading-actions">
+        <button type="button" className="preview-site-button" onClick={previewSiteInBackground}>Preview Your Site</button>
+        <button className="invite-exhibitor-button" onClick={() => window.alert('Mock action: the site branding would be published.')}>Publish Site</button>
+      </div>
+    </div>
+    <div className="pdash-card focus-card" aria-label="Site identity">
+      <div className="pdash-card-head"><strong>Site identity</strong><small>Logo, name and tagline shown across the tenant portal</small></div>
+      <div className="site-setting-grid">
+        <div className="form-field"><span>Logo</span><div className="site-logo-row"><img src="/arobid-logo.svg" alt="Site logo" /><label className="invite-upload-button">↥ Upload logo<input type="file" hidden /></label></div></div>
+        <label className="form-field"><span>Site name</span><input defaultValue={partnerTenantMock.name} /></label>
+        <label className="form-field"><span>Tagline</span><input defaultValue="A Road to Big Deals" /></label>
+        <label className="form-field textarea-field"><span>Short description</span><textarea defaultValue="The digital infrastructure of the Tay Bac Sai Gon Business Association on Arobid." /></label>
+      </div>
+    </div>
+    <div className="pdash-card focus-card" aria-label="Homepage banner" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Homepage banner</strong><small>The hero image visitors see on the tenant homepage</small></div>
+      <div className="site-banner-row">
+        <img className="site-banner" src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80" alt="Homepage banner" />
+        <label className="invite-upload-button">↥ Replace banner<input type="file" hidden /></label>
+      </div>
+    </div>
+    <div className="pdash-card focus-card" aria-label="Branding and domain" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Branding &amp; domain</strong><small>Theme colour, custom domain and contact</small></div>
+      <div className="site-setting-grid">
+        <label className="form-field"><span>Theme colour</span><input defaultValue="#ED6203" /></label>
+        <label className="form-field"><span>Custom domain</span><input defaultValue="hdn-taybacsaigon.arobid.com" /></label>
+        <label className="form-field"><span>Contact email</span><input defaultValue="contact@taybacsaigon.vn" /></label>
+      </div>
+    </div>
+  </PartnerShell>
 }
 
 // Partner Portal → Overview. A recreation of the live "Partner Analytics Command
@@ -655,7 +837,7 @@ function PartnerDashboard({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNa
     <div className="partner-app">
       <PartnerSidebar onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} overviewActive />
       <section className="partner-content">
-        <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><strong>Dashboard</strong></div><span className="partner-notification">♧<i>1</i></span></header>
+        <header className="partner-topbar"><span>◧</span><div className="partner-crumb"><strong>Dashboard</strong></div><span className="partner-notification">♧<i>1</i></span><HeaderLangToggle /></header>
         <main className="partner-main pdash-main">
           <div className="pdash-hero">
             <div>
@@ -668,7 +850,7 @@ function PartnerDashboard({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNa
           <section className="pdash-section">
             <div className="pdash-section-head">
               <h2>Operations Summary</h2>
-              <div className="pdash-range">{['1D', '3D', '7D', '15D', '30D', 'Custom'].map((range) => <span key={range} className={range === '7D' ? 'on' : ''}>{range}</span>)}</div>
+              <DashDateRange />
             </div>
             <div className="pdash-kpis">
               {ops.map((op) => (
@@ -684,7 +866,7 @@ function PartnerDashboard({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNa
           <section className="pdash-section">
             <div className="pdash-section-head">
               <div><h2>Partner Activation Funnel</h2><p className="pdash-sub">Sequential enterprise drop-off from invitation to verified onboarding and profile completion.</p></div>
-              <div className="pdash-range">{['7D', '30D', '90D', 'Custom'].map((range) => <span key={range} className={range === '30D' ? 'on' : ''}>{range}</span>)}</div>
+              <DashDateRange />
             </div>
             <div className="pdash-card">
               <div className="pdash-card-head"><strong>Enterprise Activation Drop-Off</strong><small>Invitation → verified onboarding → eProfile completion</small></div>
@@ -793,7 +975,7 @@ function PartnerDashboard({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNa
 type PartnerPageProps = { onLogoClick: () => void; onExpoConfig: () => void; onExpoOperation: () => void; onSiteNav: (item: string) => void }
 
 // Compact KPI tile row, reused across the report pages.
-function StatTiles({ items }: { items: { label: string; value: ReactNode; sub?: string; icon?: string }[] }) {
+function StatTiles({ items }: { items: { label: string; value: ReactNode; sub?: ReactNode; icon?: string }[] }) {
   return <div className="pdash-kpis">{items.map((it) => (
     <div key={it.label} className="pdash-kpi"><div className="pdash-kpi-top"><span>{it.label}</span>{it.icon && <i>{it.icon}</i>}</div><strong>{it.value}</strong>{it.sub && <small>{it.sub}</small>}</div>
   ))}</div>
@@ -809,6 +991,19 @@ function MiniBars({ rows, labelWidth = 92 }: { rows: { label: string; value: num
       <span className="pdash-tier-value">{row.display ?? String(row.value)}</span>
     </div>
   ))}</div>
+}
+
+// Compact from–to date range picker, used in dashboard section headers in place of
+// the old 1D/7D/30D range pills.
+function DashDateRange() {
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  return <div className="date-range-filter" aria-label="Date range filter">
+    <span aria-hidden="true">🗓</span>
+    <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From date" />
+    <b data-no-i18n>–</b>
+    <input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To date" />
+  </div>
 }
 
 const ECOSYSTEM_PRODUCTS = [
@@ -844,7 +1039,7 @@ const EVENT_SPEAKERS = [
 ]
 
 function PartnerEventPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
-  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Dashboard" crumb={<><span>Expo Programs</span><b>›</b><strong>Event Management</strong></>}>
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Event Management" crumb={<><span>Expo Programs</span><b>›</b><strong>Event Management</strong></>}>
     <div className="detail-heading"><div><h1>Event Management</h1><p>Events inside {furnitureExpoMock.name}.</p></div></div>
     <div className="pdash-inventory">
       <div className="pdash-card focus-card" aria-label="Event schedule">
@@ -911,46 +1106,158 @@ function PartnerAroPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav 
 }
 
 const SETTLEMENTS = [
-  { period: 'Jun 2026', gross: 320_000_000, fee: 32_000_000, payout: 288_000_000, status: 'Paid' },
-  { period: 'Jul 2026', gross: 240_000_000, fee: 24_000_000, payout: 216_000_000, status: 'Processing' },
+  { period: 'Jun 2026', date: '2026-06-15', gross: 320_000_000, fee: 32_000_000, payout: 288_000_000, status: 'Paid' },
+  { period: 'Jul 2026', date: '2026-07-15', gross: 240_000_000, fee: 24_000_000, payout: 216_000_000, status: 'Processing' },
 ]
 
+// Revenue by type for each Expo. `rate` is the Partner's share per revenue
+// type — Partner revenue = total × rate, the remainder goes to Arobid.
+const EXPO_REVENUE = [
+  { expo: 'Vietnam Furniture Expo 2026', startISO: '2026-10-12', start: '12/10/2026', end: '16/10/2026', rows: [
+    { type: 'Booth Expo', total: 296_000_000, rate: 90 },
+    { type: 'Sponsorship', total: 132_000_000, rate: 85 },
+  ] },
+  { expo: 'HCMC Home & Living', startISO: '2026-08-05', start: '05/08/2026', end: '08/08/2026', rows: [
+    { type: 'Booth Expo', total: 165_000_000, rate: 90 },
+    { type: 'Sponsorship', total: 55_000_000, rate: 85 },
+  ] },
+]
+
+const partnerShare = (row: { total: number; rate: number }) => Math.round(row.total * (row.rate / 100))
+
+// Page-wide date range: an empty bound is open-ended. ISO strings compare lexically.
+const inRange = (iso: string, from: string, to: string) => (!from || iso >= from) && (!to || iso <= to)
+
 function PartnerFinancialPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [selectedExpo, setSelectedExpo] = useState(EXPO_REVENUE[0].expo)
+
+  // Every section of the page derives from the Expos whose START date falls in the range.
+  const expos = EXPO_REVENUE.filter((e) => inRange(e.startISO, fromDate, toDate))
+  const generalRows = ['Booth Expo', 'Sponsorship'].map((type) => {
+    const rows = expos.flatMap((e) => e.rows.filter((r) => r.type === type))
+    return { type, total: rows.reduce((sum, r) => sum + r.total, 0), partner: rows.reduce((sum, r) => sum + partnerShare(r), 0) }
+  })
+  const grandTotal = generalRows.reduce((sum, r) => sum + r.total, 0)
+  const grandPartner = generalRows.reduce((sum, r) => sum + r.partner, 0)
+  const detail = expos.find((e) => e.expo === selectedExpo) ?? expos[0]
+  const settlements = SETTLEMENTS.filter((s) => inRange(s.date, fromDate, toDate))
+
   return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Credit & Revenue Reports" crumb={<><span>Data Center</span><b>›</b><strong>Financial Reports</strong></>}>
-    <div className="detail-heading"><div><h1>Financial Reports</h1><p>Revenue and settlement across your Expo Programs.</p></div></div>
+    <div className="detail-heading">
+      <div><h1>Financial Reports</h1><p>Revenue and settlement across your Expo Programs.</p></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="date-range-filter focus-card" aria-label="Date range filter">
+          <span aria-hidden="true">🗓</span>
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" />
+          <b data-no-i18n>–</b>
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label="To date" />
+        </div>
+        <button type="button" className="date-range-clear" onClick={() => { setFromDate(''); setToDate('') }} disabled={!fromDate && !toDate} aria-label="Clear date filter"><span data-no-i18n aria-hidden="true">✕ </span>Clear</button>
+      </div>
+    </div>
+    <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
+      <div className="pdash-card focus-card" aria-label="General revenue report">
+        <div className="pdash-card-head"><strong>General report</strong><small>Expos starting in the selected range — revenue by type and the Partner's share</small></div>
+        {expos.length === 0 ? <p className="finance-empty">No Expo starts in the selected date range.</p> : <div className="enterprise-table-wrap"><table className="enterprise-table">
+          <thead><tr><th>Revenue Type</th><th>Total Revenue</th><th>Partner Revenue</th></tr></thead>
+          <tbody>
+            {generalRows.map((row) => <tr key={row.type}><td>{row.type}</td><td><Money vnd={row.total} /></td><td><strong><Money vnd={row.partner} /></strong></td></tr>)}
+            <tr><td><strong>Total</strong></td><td><strong><Money vnd={grandTotal} /></strong></td><td><strong><Money vnd={grandPartner} /></strong></td></tr>
+          </tbody>
+        </table></div>}
+      </div>
+      <div className="pdash-card focus-card" aria-label="Revenue by Expo">
+        <div className="pdash-card-head"><strong>Revenue by Expo</strong><small>Filter by Expo to see its revenue detail</small></div>
+        {!detail ? <p className="finance-empty">No Expo starts in the selected date range.</p> : <>
+          <div className="partner-filters" style={{ marginBottom: 12 }}>
+            <select value={detail.expo} onChange={(e) => setSelectedExpo(e.target.value)} aria-label="Filter by Expo" style={{ minWidth: 260 }}>
+              {expos.map((e) => <option key={e.expo} value={e.expo}>{e.expo}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+            <strong style={{ color: '#17253c', fontSize: 14 }}>{detail.expo}</strong>
+            <small style={{ color: '#7e8ba0', fontSize: 12 }} data-no-i18n>{detail.start} – {detail.end}</small>
+          </div>
+          <div className="enterprise-table-wrap"><table className="enterprise-table">
+            <thead><tr><th>Revenue Type</th><th>Total Revenue</th><th>Rate</th><th>Partner Revenue</th></tr></thead>
+            <tbody>
+              {detail.rows.map((row) => <tr key={row.type}><td>{row.type}</td><td><Money vnd={row.total} /></td><td><span data-no-i18n>{row.rate}%</span></td><td><strong><Money vnd={partnerShare(row)} /></strong></td></tr>)}
+              <tr><td><strong>Total</strong></td><td><strong><Money vnd={detail.rows.reduce((sum, r) => sum + r.total, 0)} /></strong></td><td /><td><strong><Money vnd={detail.rows.reduce((sum, r) => sum + partnerShare(r), 0)} /></strong></td></tr>
+            </tbody>
+          </table></div>
+        </>}
+      </div>
+    </div>
+    <div className="pdash-card focus-card" aria-label="Settlement and payouts" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Settlement and payouts</strong><small>What Arobid retains vs the Partner receives</small></div>
+      {settlements.length === 0 ? <p className="finance-empty">No payout period in the selected date range.</p> : <div className="enterprise-table-wrap"><table className="enterprise-table">
+        <thead><tr><th>Period</th><th>Gross</th><th>Arobid fee</th><th>Partner payout</th><th>Status</th></tr></thead>
+        <tbody>{settlements.map((row) => <tr key={row.period}><td>{row.period}</td><td><Money vnd={row.gross} /></td><td><Money vnd={row.fee} /></td><td><strong><Money vnd={row.payout} /></strong></td><td><span className={row.status === 'Paid' ? 'invite-status joined' : 'invite-status opened'}>{row.status}</span></td></tr>)}</tbody>
+      </table></div>}
+    </div>
+  </PartnerShell>
+}
+
+// Expo Operations (Bảng điều hành Expo) — the live operations centre of a running
+// Expo. Backs steps 3-4 of the partner-expo-operations flow (booth occupancy + live
+// visitor traffic), shown while the Expo is Live.
+function PartnerExpoOperationsPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Dashboard" crumb={<><span>Expo Programs</span><b>›</b><strong>Expo Operations</strong></>}>
+    <div className="detail-heading"><div><h1>Expo Operations</h1><p>{furnitureExpoMock.name} <span className="live-status">Live</span></p></div></div>
     <StatTiles items={[
-      { label: 'Total Revenue', value: <Money vnd={720_000_000} />, sub: '+14.6% vs prev', icon: '◈' },
-      { label: 'Booth Sales', value: <Money vnd={461_000_000} />, sub: '64% of revenue', icon: '◧' },
-      { label: 'Sponsorships', value: <Money vnd={187_000_000} />, sub: '26% of revenue', icon: '✦' },
-      { label: 'Add-on Services', value: <Money vnd={72_000_000} />, sub: '10% of revenue', icon: '▤' },
+      { label: 'Visitors online', value: <span data-no-i18n>312</span>, sub: 'right now', icon: '◉' },
+      { label: 'Visitors today', value: <span data-no-i18n>4,820</span>, sub: '+18% vs yesterday', icon: '◍' },
+      { label: 'Booths sold', value: <span data-no-i18n>174 / 200</span>, sub: '87% occupancy', icon: '▧' },
+      { label: 'RFQs today', value: <span data-no-i18n>96</span>, sub: '+24 this hour', icon: '▤' },
     ]} />
     <div className="pdash-inventory" style={{ marginTop: 16 }}>
-      <div className="pdash-card focus-card" aria-label="Revenue by Expo">
-        <div className="pdash-card-head"><strong>Revenue by Expo</strong><small>Booth, sponsorship and add-on services</small></div>
-        <MiniBars labelWidth={160} rows={[
-          { label: 'Vietnam Furniture Expo 2026', value: 470, display: <Money vnd={470_000_000} />, color: '#ff7a35' },
-          { label: 'HCMC Home & Living', value: 250, display: <Money vnd={250_000_000} />, color: '#7857d5' },
+      <div className="pdash-card focus-card" aria-label="Booth occupancy">
+        <div className="pdash-card-head"><strong>Booth occupancy</strong><small>Booths sold per tier</small></div>
+        <MiniBars labelWidth={120} rows={[
+          { label: 'Basic', value: 132, display: <span data-no-i18n>132 / 150</span>, color: '#ff7a35' },
+          { label: 'Professional', value: 34, display: <span data-no-i18n>34 / 40</span>, color: '#7857d5' },
+          { label: 'Premium', value: 8, display: <span data-no-i18n>8 / 10</span>, color: '#2f9e8f' },
         ]} />
       </div>
-      <div className="pdash-card focus-card" aria-label="Settlement and payouts">
-        <div className="pdash-card-head"><strong>Settlement and payouts</strong><small>What Arobid retains vs the Partner receives</small></div>
-        <div className="enterprise-table-wrap"><table className="enterprise-table">
-          <thead><tr><th>Period</th><th>Gross</th><th>Arobid fee</th><th>Partner payout</th><th>Status</th></tr></thead>
-          <tbody>{SETTLEMENTS.map((row) => <tr key={row.period}><td>{row.period}</td><td><Money vnd={row.gross} /></td><td><Money vnd={row.fee} /></td><td><strong><Money vnd={row.payout} /></strong></td><td><span className={row.status === 'Paid' ? 'invite-status joined' : 'invite-status opened'}>{row.status}</span></td></tr>)}</tbody>
-        </table></div>
+      <div className="pdash-card focus-card" aria-label="Live visitor traffic">
+        <div className="pdash-card-head"><strong>Live visitor traffic</strong><small>Most-visited booths right now</small></div>
+        <MiniBars labelWidth={160} rows={[
+          { label: 'Woodcraft Living Co.', value: 820, display: <span data-no-i18n>820</span>, color: '#ff7a35' },
+          { label: 'Saigon Interior Studio', value: 610, display: <span data-no-i18n>610</span>, color: '#2f9e8f' },
+          { label: 'Vietnam Furniture Export', value: 430, display: <span data-no-i18n>430</span>, color: '#7857d5' },
+        ]} />
       </div>
     </div>
   </PartnerShell>
 }
 
+// Landing screen for sidebar entries whose feature isn't built yet. The message is
+// intentionally identical in VI and EN (data-no-i18n keeps the translator away).
+function PartnerComingSoonPage({ item, onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps & { item: string }) {
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav={item} crumb={<><span>Partner Portal</span><b>›</b><strong>{item}</strong></>}>
+    <div className="coming-soon-panel" data-no-i18n>
+      <span aria-hidden="true">🚧</span>
+      <h2>This feature is coming soon</h2>
+      <p>{item}</p>
+    </div>
+  </PartnerShell>
+}
+
 const DEALROOM_CONVERSATIONS = [
-  { buyer: 'Home Living Group', exhibitor: 'Woodcraft Living', last: 'Sent a revised quotation', status: 'Active' },
-  { buyer: 'FurnitureHub VN', exhibitor: 'Saigon Interior', last: 'Awaiting buyer reply', status: 'Waiting' },
-  { buyer: 'Global Trade Partner', exhibitor: 'VN Furniture Export', last: 'Deal confirmed', status: 'Closed' },
+  { buyer: 'Home Living Group', exhibitor: 'Woodcraft Living', last: 'Sent a revised quotation' },
+  { buyer: 'FurnitureHub VN', exhibitor: 'Saigon Interior', last: 'Awaiting buyer reply' },
+  { buyer: 'Global Trade Partner', exhibitor: 'VN Furniture Export', last: 'Deal confirmed' },
+]
+
+const RFQ_BY_EXPO = [
+  { expo: 'Vietnam Furniture Expo 2026', rfq: 268, deal: '38 deal rooms open · 12 need follow-up' },
+  { expo: 'HCMC Home & Living', rfq: 128, deal: '16 deal rooms open · 5 awaiting reply' },
 ]
 
 function PartnerRfqDealroomPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
-  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Deal Room" crumb={<><span>Deal Room</span><b>›</b><strong>RFQ &amp; Deal Room</strong></>}>
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="RFQ & Deal Room" crumb={<><span>Expo Programs</span><b>›</b><strong>RFQ &amp; Deal Room</strong></>}>
     <div className="detail-heading"><div><h1>RFQ &amp; Deal Room</h1><p>Buyer demand and live conversations across your Expos.</p></div></div>
     <StatTiles items={[
       { label: 'RFQs Received', value: '396', sub: '+62 this month', icon: '▤' },
@@ -958,20 +1265,208 @@ function PartnerRfqDealroomPage({ onLogoClick, onExpoConfig, onExpoOperation, on
       { label: 'Open Deal Rooms', value: '38', sub: '12 need follow-up', icon: '◍' },
       { label: 'Response Rate', value: '71%', sub: '+5% vs prev', icon: '◔' },
     ]} />
-    <div className="pdash-inventory" style={{ marginTop: 16 }}>
+    <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
       <div className="pdash-card focus-card" aria-label="RFQ volume per Expo">
         <div className="pdash-card-head"><strong>RFQ volume per Expo</strong><small>The most direct measure of value delivered</small></div>
-        <MiniBars labelWidth={160} rows={[
-          { label: 'Vietnam Furniture Expo 2026', value: 268, color: '#ff7a35' },
-          { label: 'HCMC Home & Living', value: 128, color: '#2f9e8f' },
-        ]} />
+        <div className="enterprise-table-wrap"><table className="enterprise-table">
+          <thead><tr><th>Expo</th><th>RFQ</th><th>Deal context</th></tr></thead>
+          <tbody>{RFQ_BY_EXPO.map((row) => (
+            <tr key={row.expo}><td><strong>{row.expo}</strong></td><td><span data-no-i18n>{row.rfq}</span></td><td>{row.deal}</td></tr>
+          ))}</tbody>
+        </table></div>
       </div>
       <div className="pdash-card focus-card" aria-label="Deal Room conversations">
         <div className="pdash-card-head"><strong>Deal Room conversations</strong><small>Open threads between buyers and exhibitors</small></div>
         <ul className="people-list">{DEALROOM_CONVERSATIONS.map((conv) => (
-          <li key={conv.buyer}><span className="people-avatar">{conv.buyer[0]}</span><div><strong>{conv.buyer} ↔ {conv.exhibitor}</strong><small>{conv.last}</small></div><span className={`invite-status ${conv.status === 'Active' ? 'joined' : conv.status === 'Waiting' ? 'opened' : 'sent'}`}>{conv.status}</span></li>
+          <li key={conv.buyer}><span className="people-avatar">{conv.buyer[0]}</span><div><strong>{conv.buyer} ↔ {conv.exhibitor}</strong><small>{conv.last}</small></div></li>
         ))}</ul>
       </div>
+    </div>
+  </PartnerShell>
+}
+
+// Deal Room — a chat UI: conversation list + message thread between a buyer and an
+// exhibitor, the way a real messaging product looks.
+const DEALROOM_THREADS = [
+  { id: 'home-living', buyer: 'Home Living Group', exhibitor: 'Woodcraft Living', expo: 'Vietnam Furniture Expo 2026', unread: 2, messages: [
+    { from: 'buyer', text: 'Hi, we need 500 oak dining sets. Can you quote FOB HCMC?', time: '09:12' },
+    { from: 'exhibitor', text: 'Sure — sending a revised quotation with volume pricing now.', time: '09:20' },
+    { from: 'buyer', text: 'Great. What is the lead time for that volume?', time: '09:24' },
+  ] },
+  { id: 'furniturehub', buyer: 'FurnitureHub VN', exhibitor: 'Saigon Interior', expo: 'HCMC Home & Living', unread: 0, messages: [
+    { from: 'exhibitor', text: 'Thanks for the RFQ. Do you also need matching sideboards?', time: 'Mon' },
+    { from: 'buyer', text: 'Let me check with the team and get back to you.', time: 'Mon' },
+  ] },
+  { id: 'global-trade', buyer: 'Global Trade Partner', exhibitor: 'VN Furniture Export', expo: 'Vietnam Furniture Expo 2026', unread: 0, messages: [
+    { from: 'buyer', text: 'Deal confirmed — PO attached. Thank you!', time: 'Fri' },
+    { from: 'exhibitor', text: 'Received, we will start production. 🎉', time: 'Fri' },
+  ] },
+]
+
+function PartnerDealRoomPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  const [activeId, setActiveId] = useState(DEALROOM_THREADS[0].id)
+  const thread = DEALROOM_THREADS.find((t) => t.id === activeId) ?? DEALROOM_THREADS[0]
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Deal Room" crumb={<><span>Deal Room</span><b>›</b><strong>Messages</strong></>}>
+    <div className="detail-heading"><div><h1>Deal Room</h1><p>Live buyer ↔ exhibitor conversations across your Expos.</p></div></div>
+    <div className="chat-shell">
+      <aside className="chat-list">{DEALROOM_THREADS.map((t) => (
+        <button key={t.id} className={`chat-list-item ${t.id === activeId ? 'active' : ''}`} onClick={() => setActiveId(t.id)}>
+          <span className="chat-avatar" data-no-i18n>{t.buyer[0]}</span>
+          <div className="chat-list-meta"><strong data-no-i18n>{t.buyer} ↔ {t.exhibitor}</strong><small>{t.messages[t.messages.length - 1].text}</small></div>
+          {t.unread > 0 && <span className="chat-unread" data-no-i18n>{t.unread}</span>}
+        </button>
+      ))}</aside>
+      <section className="chat-thread">
+        <header className="chat-thread-head"><span className="chat-avatar" data-no-i18n>{thread.buyer[0]}</span><div><strong data-no-i18n>{thread.buyer} ↔ {thread.exhibitor}</strong><small data-no-i18n>{thread.expo}</small></div></header>
+        <div className="chat-messages">{thread.messages.map((m, i) => (
+          <div key={i} className={`chat-bubble ${m.from === 'buyer' ? 'me' : 'them'}`}>
+            <span className="chat-bubble-from" data-no-i18n>{m.from === 'buyer' ? thread.buyer : thread.exhibitor}</span>
+            <p data-no-i18n>{m.text}</p>
+            <time data-no-i18n>{m.time}</time>
+          </div>
+        ))}</div>
+        <div className="chat-composer">
+          <input placeholder="Type a message…" aria-label="Message" />
+          <button onClick={() => window.alert('Mock action: the message would be sent.')} aria-label="Send">➤</button>
+        </div>
+      </section>
+    </div>
+  </PartnerShell>
+}
+
+// Per-Expo performance report data (Expo Reports / Báo cáo Expo). Enough Expos that
+// the searchable picker earns its keep.
+const EXPO_REPORTS = [
+  { name: 'Vietnam Furniture Expo 2026', start: '12/10/2026', end: '16/10/2026', status: 'Live', exhibitors: 86, visitors: 12480, rfqs: 396, dealValue: 850_000_000,
+    occupancy: [{ label: 'Basic', value: 132, color: '#ff7a35' }, { label: 'Professional', value: 34, color: '#7857d5' }, { label: 'Premium', value: 8, color: '#2f9e8f' }] },
+  { name: 'HCMC Home & Living', start: '05/08/2026', end: '08/08/2026', status: 'Upcoming', exhibitors: 52, visitors: 7240, rfqs: 168, dealValue: 410_000_000,
+    occupancy: [{ label: 'Basic', value: 78, color: '#ff7a35' }, { label: 'Professional', value: 22, color: '#7857d5' }, { label: 'Premium', value: 5, color: '#2f9e8f' }] },
+  { name: 'Vietnam Manufacturing Expo 2026', start: '12/08/2026', end: '14/08/2026', status: 'Live', exhibitors: 120, visitors: 18600, rfqs: 512, dealValue: 1_240_000_000,
+    occupancy: [{ label: 'Basic', value: 160, color: '#ff7a35' }, { label: 'Professional', value: 48, color: '#7857d5' }, { label: 'Premium', value: 12, color: '#2f9e8f' }] },
+  { name: 'Smart Retail & Commerce Expo', start: '20/07/2026', end: '22/07/2026', status: 'Live', exhibitors: 64, visitors: 9100, rfqs: 232, dealValue: 560_000_000,
+    occupancy: [{ label: 'Basic', value: 96, color: '#ff7a35' }, { label: 'Professional', value: 28, color: '#7857d5' }, { label: 'Premium', value: 6, color: '#2f9e8f' }] },
+  { name: 'Vietnam Green Growth Forum', start: '15/05/2026', end: '16/05/2026', status: 'Archived', exhibitors: 38, visitors: 4820, rfqs: 96, dealValue: 210_000_000,
+    occupancy: [{ label: 'Basic', value: 52, color: '#ff7a35' }, { label: 'Professional', value: 14, color: '#7857d5' }, { label: 'Premium', value: 3, color: '#2f9e8f' }] },
+]
+
+// A combobox: click to open a panel with a search box that filters the Expo list.
+function ExpoSearchSelect({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false) }
+    const doc = wrapRef.current?.ownerDocument ?? document
+    doc.addEventListener('mousedown', onDown)
+    return () => doc.removeEventListener('mousedown', onDown)
+  }, [open])
+  const q = query.trim().toLowerCase()
+  const matches = EXPO_REPORTS.filter((e) => !q || e.name.toLowerCase().includes(q))
+  return <div className="expo-search-select" ref={wrapRef}>
+    <button type="button" className="expo-search-trigger" onClick={() => { setOpen((o) => !o); setQuery('') }} aria-expanded={open} aria-label="Select an Expo">
+      <span data-no-i18n>{value}</span><b aria-hidden="true">⌄</b>
+    </button>
+    {open && <div className="expo-search-panel">
+      <label className="expo-search-box">⌕<input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search Expo…" aria-label="Search Expo" /></label>
+      <div className="expo-search-list">
+        {matches.length === 0
+          ? <p className="expo-search-empty">No Expo found.</p>
+          : matches.map((e) => (
+            <button key={e.name} type="button" className={`expo-search-option ${e.name === value ? 'selected' : ''}`} onClick={() => { onChange(e.name); setOpen(false) }}>
+              <span data-no-i18n>{e.name}</span><small data-no-i18n>{e.start} – {e.end}</small>
+            </button>
+          ))}
+      </div>
+    </div>}
+  </div>
+}
+
+function PartnerExpoReportsPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  const [selected, setSelected] = useState(EXPO_REPORTS[0].name)
+  const expo = EXPO_REPORTS.find((e) => e.name === selected) ?? EXPO_REPORTS[0]
+  const statusClass = expo.status === 'Live' ? 'joined' : expo.status === 'Upcoming' ? 'opened' : 'sent'
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Expo Reports" crumb={<><span>Data Center</span><b>›</b><strong>Expo Reports</strong></>}>
+    <div className="detail-heading">
+      <div><h1>Expo Reports</h1><p>Per-Expo performance across your Expo Programs.</p></div>
+      <ExpoSearchSelect value={selected} onChange={setSelected} />
+    </div>
+    <div className="expo-report-head focus-card" aria-label="Selected Expo">
+      <div><strong data-no-i18n>{expo.name}</strong><small data-no-i18n>{expo.start} – {expo.end}</small></div>
+      <span className={`invite-status ${statusClass}`}>{expo.status}</span>
+    </div>
+    <div className="pdash-card focus-card" aria-label="Expo performance summary" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Expo performance</strong><small>Exhibitors, visitors, RFQs and estimated deal value</small></div>
+      <StatTiles items={[
+        { label: 'Exhibitors', value: <span data-no-i18n>{expo.exhibitors}</span>, icon: '◧' },
+        { label: 'Visitors', value: <span data-no-i18n>{expo.visitors.toLocaleString('en-US')}</span>, icon: '◉' },
+        { label: 'RFQs Generated', value: <span data-no-i18n>{expo.rfqs}</span>, icon: '▤' },
+        { label: 'Est. Deal Value', value: <Money vnd={expo.dealValue} />, icon: '◈' },
+      ]} />
+    </div>
+    <div className="pdash-card focus-card" aria-label="Booth occupancy" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Booth occupancy</strong><small>Booths sold per tier</small></div>
+      <MiniBars labelWidth={120} rows={expo.occupancy} />
+    </div>
+    <div className="pdash-card focus-card export-card" aria-label="Export the report" style={{ marginTop: 16 }}>
+      <div><strong>Export the report</strong><small>Share this Expo's performance with sponsors and trade associations.</small></div>
+      <button className="invite-exhibitor-button" onClick={() => window.alert('Mock action: the Expo report would download as PDF.')}>Export Report (PDF)</button>
+    </div>
+  </PartnerShell>
+}
+
+// Expo Programs → Dashboard. A single page that rolls up every Expo report:
+// portfolio performance, revenue by Expo, RFQ volume and settlement. Distinct from
+// the Overview (Partner Analytics) dashboard.
+function PartnerExpoDashboardPage({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav }: PartnerPageProps) {
+  const totalExhibitors = EXPO_REPORTS.reduce((s, e) => s + e.exhibitors, 0)
+  const totalVisitors = EXPO_REPORTS.reduce((s, e) => s + e.visitors, 0)
+  const totalRfqs = EXPO_REPORTS.reduce((s, e) => s + e.rfqs, 0)
+  const statusClass = (s: string) => s === 'Live' ? 'joined' : s === 'Upcoming' ? 'opened' : 'sent'
+  return <PartnerShell onLogoClick={onLogoClick} onExpoConfig={onExpoConfig} onExpoOperation={onExpoOperation} onSiteNav={onSiteNav} activeNav="Dashboard" crumb={<><span>Expo Programs</span><b>›</b><strong>Dashboard</strong></>}>
+    <div className="detail-heading"><div><h1>Expo Programs Dashboard</h1><p>Every Expo report in one place — performance, revenue, RFQs and settlement.</p></div></div>
+    <StatTiles items={[
+      { label: 'Total Exhibitors', value: <span data-no-i18n>{totalExhibitors}</span>, sub: 'across all Expos', icon: '◧' },
+      { label: 'Total Visitors', value: <span data-no-i18n>{totalVisitors.toLocaleString('en-US')}</span>, sub: 'across all Expos', icon: '◉' },
+      { label: 'RFQs Generated', value: <span data-no-i18n>{totalRfqs}</span>, sub: 'buyer demand', icon: '▤' },
+    ]} />
+    <div className="pdash-card focus-card" aria-label="Expo performance" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Expo performance</strong><small>Every Expo across its lifecycle</small></div>
+      <div className="enterprise-table-wrap"><table className="enterprise-table">
+        <thead><tr><th>Expo</th><th>Status</th><th>Exhibitors</th><th>Visitors</th><th>RFQs</th></tr></thead>
+        <tbody>{EXPO_REPORTS.map((e) => (
+          <tr key={e.name}>
+            <td><strong data-no-i18n>{e.name}</strong></td>
+            <td><span className={`invite-status ${statusClass(e.status)}`}>{e.status}</span></td>
+            <td data-no-i18n>{e.exhibitors}</td>
+            <td data-no-i18n>{e.visitors.toLocaleString('en-US')}</td>
+            <td data-no-i18n>{e.rfqs}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    </div>
+    <div className="pdash-inventory" style={{ marginTop: 16 }}>
+      <div className="pdash-card focus-card" aria-label="Revenue by Expo">
+        <div className="pdash-card-head"><strong>Revenue by Expo</strong><small>Estimated deal value per Expo</small></div>
+        <div className="enterprise-table-wrap"><table className="enterprise-table compact">
+          <thead><tr><th>Expo</th><th>Revenue</th></tr></thead>
+          <tbody>{EXPO_REPORTS.map((e) => <tr key={e.name}><td data-no-i18n>{e.name}</td><td><Money vnd={e.dealValue} /></td></tr>)}</tbody>
+        </table></div>
+      </div>
+      <div className="pdash-card focus-card" aria-label="RFQ volume per Expo">
+        <div className="pdash-card-head"><strong>RFQ volume per Expo</strong><small>Buyer demand generated</small></div>
+        <div className="enterprise-table-wrap"><table className="enterprise-table compact">
+          <thead><tr><th>Expo</th><th>RFQs</th></tr></thead>
+          <tbody>{EXPO_REPORTS.map((e) => <tr key={e.name}><td data-no-i18n>{e.name}</td><td data-no-i18n>{e.rfqs}</td></tr>)}</tbody>
+        </table></div>
+      </div>
+    </div>
+    <div className="pdash-card focus-card" aria-label="Settlement and payouts" style={{ marginTop: 16 }}>
+      <div className="pdash-card-head"><strong>Settlement and payouts</strong><small>What Arobid retains vs the Partner receives</small></div>
+      <div className="enterprise-table-wrap"><table className="enterprise-table">
+        <thead><tr><th>Period</th><th>Gross</th><th>Arobid fee</th><th>Partner payout</th><th>Status</th></tr></thead>
+        <tbody>{SETTLEMENTS.map((row) => <tr key={row.period}><td>{row.period}</td><td><Money vnd={row.gross} /></td><td><Money vnd={row.fee} /></td><td><strong><Money vnd={row.payout} /></strong></td><td><span className={row.status === 'Paid' ? 'invite-status joined' : 'invite-status opened'}>{row.status}</span></td></tr>)}</tbody>
+      </table></div>
     </div>
   </PartnerShell>
 }
@@ -2335,19 +2830,25 @@ function AdminNavIcon({ item }: { item: string }) {
 // Runs the guided journey over ANY step list. Without a flow it plays the full
 // journey; with one it plays just that flow's steps. Everything below (progress
 // bar, step count, skip-to table, keyboard nav) already derives from `steps`.
-function DemoJourney({ flow, onExit }: { flow?: RoleFlow; onExit: () => void }) {
+function DemoJourney({ flow, onExit, initialStep = 0 }: { flow?: RoleFlow; onExit: () => void; initialStep?: number }) {
   const steps = flow ? flow.steps : demoScriptSteps
   const total = steps.length
-  const [index, setIndex] = useState(0)
+  // Clamp the deep-linked start step into range.
+  const startIndex = Math.min(Math.max(initialStep, 0), total - 1)
+  const [index, setIndex] = useState(startIndex)
   const [phase, setPhase] = useState<'intro' | 'highlight' | 'script' | 'action'>('intro')
   const [runKey, setRunKey] = useState(0)
   const [typed, setTyped] = useState('')
   const [skipOpen, setSkipOpen] = useState(false)
   const [dockHidden, setDockHidden] = useState(false)
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
+  // The cloned screen. `src` only changes on a genuine page load; `nonce` forces a
+  // remount when the same src must be reloaded from scratch. Steps that stay on the
+  // page the iframe is ALREADY showing never reload it (see the sync effect below).
+  const [frame, setFrame] = useState(() => ({ nonce: 0, src: steps[startIndex].path }))
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
-  const { lang } = useLanguage()
+  const { lang, toggle: toggleLang } = useLanguage()
   const activeScript = lang === 'en' ? (step.scriptEn ?? step.script) : step.script
   const typingDone = typed.length >= activeScript.length
 
@@ -2559,6 +3060,31 @@ function DemoJourney({ flow, onExit }: { flow?: RoleFlow; onExit: () => void }) 
     return () => window.clearTimeout(t)
   }, [phase, index, runKey])
 
+  // Keep the cloned screen in sync with the step WITHOUT reloading it. If the
+  // iframe is already on the step's page (same page, or the previous step's CTA
+  // already navigated there), leave it alone — its live state (open modals,
+  // filters, scroll) carries over. If it's on a different page, SPA-navigate the
+  // embedded app in place (replaceState + popstate — the same mechanism its own
+  // buttons use), so no full page load happens. Only fall back to remounting the
+  // iframe when the frame isn't ready (initial mount, load still in flight).
+  // Declared BEFORE the prep effect so prep clicks always land on the new page.
+  useEffect(() => {
+    const iframe = iframeRef.current
+    const win = iframe?.contentWindow
+    const doc = iframe?.contentDocument
+    if (win && doc && doc.readyState === 'complete' && doc.body?.children.length) {
+      if (win.location.pathname === step.path) return
+      try {
+        win.history.replaceState({}, '', step.path)
+        win.dispatchEvent(new PopStateEvent('popstate'))
+        win.scrollTo(0, 0)
+        window.setTimeout(paintHighlights, 220)
+        return
+      } catch { /* cross-realm hiccup — fall back to a fresh load below */ }
+    }
+    setFrame((f) => (f.src === step.path ? f : { nonce: f.nonce + 1, src: step.path }))
+  }, [index, runKey])
+
   // When the script dock slides open it shortens the iframe (on mobile the dock
   // is a fixed bottom section that the screen shrinks to make room for). That
   // can push the highlighted component below the new, shorter viewport, so
@@ -2611,23 +3137,35 @@ function DemoJourney({ flow, onExit }: { flow?: RoleFlow; onExit: () => void }) 
     return () => { cancelled = true; window.clearTimeout(start) }
   }, [index, runKey])
 
-  // Close standalone preview popups (e.g. the 3D template modal) when leaving a
-  // step so they don't linger over the next step. Modal sub-step flows reopen
-  // their own modal via prep, so this is safe for them.
-  const closeTransientModals = () => {
+  // Close every open modal / overlay inside the cloned screen. Reaches each one's
+  // Close control (× / backdrop button), so React actually unmounts the modal.
+  const closeAllModals = () => {
     const doc = iframeRef.current?.contentDocument
     if (!doc) return
-    doc.querySelectorAll('.template-modal [aria-label="Close"], .template-modal-backdrop [aria-label="Close"]').forEach((btn) => (btn as HTMLElement).click())
+    doc.querySelectorAll('.template-modal, .template-modal-backdrop, .invite-modal, [role="dialog"], .quick-signup-overlay, .booth-benefits-overlay')
+      .forEach((c) => (c.querySelector('[aria-label^="Close"]') as HTMLElement | null)?.click())
   }
 
+  // A modal must be open ONLY on the steps that describe it (screen contains
+  // "Modal"/"Popup"). On every other step — including when the user goes back or
+  // skips into a non-modal step — make sure no modal is left lingering. Modal steps
+  // open their own modal via `prep`, so this leaves those untouched.
+  const isModalStep = /modal|popup/i.test(step.screen)
+  useEffect(() => {
+    if (isModalStep) return
+    closeAllModals()
+    const t = window.setTimeout(closeAllModals, 140)
+    return () => window.clearTimeout(t)
+  }, [index, runKey, isModalStep])
+
   const advance = () => setPhase((current) => current === 'highlight' ? 'script' : current)
-  const next = () => { closeTransientModals(); index === total - 1 ? onExit() : setIndex(index + 1) }
-  const back = () => { closeTransientModals(); if (index > 0) setIndex(index - 1) }
+  const next = () => { index === total - 1 ? onExit() : setIndex(index + 1) }
+  const back = () => { if (index > 0) setIndex(index - 1) }
   const replay = () => { setPhase('highlight'); setTyped(''); setRunKey((k) => k + 1) }
   // Jump straight to a chosen step. The progress bar fills/unfills from the new
   // index and the journey resumes normally from there (the step-reset effect
   // restarts the reveal → script sequence).
-  const goTo = (i: number) => { setSkipOpen(false); closeTransientModals(); if (i !== index) setIndex(i); else replay() }
+  const goTo = (i: number) => { setSkipOpen(false); if (i !== index) setIndex(i); else replay() }
 
   // Demo the interaction: click the real CTA inside the cloned screen so the
   // modal actually opens / the page actually navigates, then move to the 'action'
@@ -2673,15 +3211,18 @@ function DemoJourney({ flow, onExit }: { flow?: RoleFlow; onExit: () => void }) 
   return (
     <div className="gtour-stage">
       <div className="gtour-topbar">
-        <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo.svg" alt="arobid.com" /><small>Sales Kit</small></button>
+        <button className="gtour-brand" onClick={onExit}><img src="/arobid-logo.svg" alt="arobid.com" /><small>Demo Kit</small></button>
         {flow && <span className="gtour-flow-title">{lang === 'en' ? flow.nameEn : flow.nameVi}</span>}
         <div className="gtour-progress">{steps.map((_, i) => <span key={i} className={i === index ? 'on' : i < index ? 'done' : ''} />)}</div>
         <div className="gtour-count">{index + 1} / {total}</div>
+        <button className="gtour-lang" data-no-i18n onClick={toggleLang} aria-label={lang === 'vi' ? 'Chuyển sang tiếng Anh' : 'Switch to Vietnamese'} title="VI / EN">
+          <span className={lang === 'vi' ? 'on' : ''}>VI</span><i /><span className={lang === 'en' ? 'on' : ''}>EN</span>
+        </button>
         <button className="gtour-exit" onClick={onExit}>Exit ✕</button>
       </div>
 
       <div className="gtour-screen">
-        <iframe ref={iframeRef} key={step.path} title={step.screen} src={step.path} onLoad={() => window.setTimeout(paintHighlights, 220)} />
+        <iframe ref={iframeRef} key={frame.nonce} title={step.screen} src={frame.src} onLoad={() => window.setTimeout(paintHighlights, 220)} />
         {/* The veil dims/captures the screen during the reveal. Once the script
             has fully typed (or in the action phase) it becomes click-through so
             the user can scroll and read the page underneath. */}
@@ -2733,7 +3274,7 @@ function ConceptScreen({ flow, onLogoClick }: { flow: RoleFlow; onLogoClick: () 
   return (
     <div className="concept-page">
       <header className="concept-topbar">
-        <button className="concept-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button>
+        <button className="concept-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Demo Kit</small></button>
         <span className="concept-badge">{en ? 'Concept — screen in design' : 'Concept — màn hình đang thiết kế'}</span>
       </header>
       <main className="concept-content">
@@ -2769,62 +3310,70 @@ function ConceptScreen({ flow, onLogoClick }: { flow: RoleFlow; onLogoClick: () 
   )
 }
 
-const ROLE_ACCENT: Record<string, string> = { Admin: '#7857d5', Partner: '#ed6203', Exhibitor: '#2f9e8f', Visitor: '#2f6fed' }
+const WF_ACCENT: Record<string, string> = { Admin: '#7857d5', Partner: '#ed6203', Exhibitor: '#2f9e8f', Visitor: '#2f6fed' }
+
+// Role workflow page: the role's flows grouped into meaningful lifecycle stages,
+// laid out as a left-to-right pipeline. Each flow card runs its guided demo.
+function RoleWorkflowPage({ role, onSelect, onBack }: { role: string; onSelect: (path: string) => void; onBack: () => void }) {
+  const { lang, toggle } = useLanguage()
+  const en = lang === 'en'
+  const def = roleDefs.find((r) => r.role === role)
+  const stages = roleWorkflows[role] ?? []
+  const accent = WF_ACCENT[role] ?? '#ed6203'
+  // Number the flows 1..N in pipeline order across the stages.
+  let counter = 0
+  const numbered = stages.map((stage) => ({
+    stage,
+    items: stage.flowIds.map((id) => ({ n: ++counter, flow: findFlow(id) })).filter((x): x is { n: number; flow: RoleFlow } => Boolean(x.flow)),
+  }))
+  return <div className="role-selection-page wf-page">
+    <header className="role-topbar">
+      <button className="role-brand logo-button" onClick={onBack}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Demo Kit</small></button>
+      <div className="role-topbar-actions" data-no-i18n>
+        <button className="role-guide-btn" onClick={onBack}><span className="role-guide-btn-icon" aria-hidden="true">‹</span><span>{en ? 'All roles' : 'Tất cả vai trò'}</span></button>
+        <button className="role-lang-toggle" onClick={toggle} aria-label={en ? 'Switch to Vietnamese' : 'Chuyển sang tiếng Anh'} title="VI / EN"><span className={lang === 'vi' ? 'on' : ''}>VI</span><i /><span className={lang === 'en' ? 'on' : ''}>EN</span></button>
+      </div>
+    </header>
+    <main className="wf-main">
+      <div className="wf-head">
+        <span className="wf-role-icon" style={{ background: accent }}>{def?.icon}</span>
+        <div>
+          <p className="role-eyebrow" data-no-i18n>{en ? 'Role workflow' : 'Quy trình vai trò'} · {counter} {en ? 'flows' : 'flow'}</p>
+          <h1 data-no-i18n>{role}</h1>
+          <p className="wf-intro">{def?.description}</p>
+        </div>
+      </div>
+      <div className="wf-pipeline">
+        {numbered.flatMap(({ stage, items }, si) => {
+          const col = <div key={`s${si}`} className="wf-stage" style={{ '--accent': accent } as CSSProperties}>
+            <div className="wf-stage-head"><span className="wf-stage-num">{si + 1}</span><div><strong>{en ? stage.en : stage.vi}</strong><small>{en ? stage.hintEn : stage.hintVi}</small></div></div>
+            <div className="wf-flow-list">{items.map(({ n, flow }) => (
+              <button key={flow.id} className="wf-flow" onClick={() => onSelect(`/demo-journey/${flow.id}`)}>
+                <span className="wf-flow-num" data-no-i18n>{String(n).padStart(2, '0')}</span>
+                <strong>{en ? flow.nameEn : flow.nameVi}</strong>
+                <small>{en ? flow.descEn : flow.descVi}</small>
+                <span className="wf-flow-run" data-no-i18n>{en ? 'Run' : 'Chạy'} ▸</span>
+              </button>
+            ))}</div>
+          </div>
+          return si < numbered.length - 1 ? [col, <div key={`a${si}`} className="wf-arrow" aria-hidden="true">→</div>] : [col]
+        })}
+      </div>
+    </main>
+  </div>
+}
 
 function RoleSelection({ onSelect }: { onSelect: (path: string) => void }) {
   const { lang, toggle } = useLanguage()
-  const [roleFilter, setRoleFilter] = useState('All')
-  const [query, setQuery] = useState('')
   const [scriptOpen, setScriptOpen] = useState(false)
   const [scriptExpanded, setScriptExpanded] = useState<number[]>([])
   const [guideOpen, setGuideOpen] = useState(false)
-  const q = query.trim().toLowerCase()
-  const matchFlow = (flow: RoleFlow) => !q || [flow.nameEn, flow.nameVi, flow.descEn, flow.descVi].some((text) => text.toLowerCase().includes(q))
-  const roleCount = (role: string) => (role === 'All' ? roleDefs.flatMap((r) => r.flows) : roleDefs.find((r) => r.role === role)?.flows ?? []).filter(matchFlow).length
-  const totalMatches = roleDefs.filter((r) => roleFilter === 'All' || r.role === roleFilter).flatMap((r) => r.flows).filter(matchFlow).length
 
-  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Sales Kit</small></button><div className="role-topbar-actions" data-no-i18n><button className="role-guide-btn" onClick={() => setGuideOpen(true)}><span className="role-guide-btn-icon" aria-hidden="true">i</span><span>{lang === 'vi' ? 'Hướng dẫn sử dụng Sales Kit' : 'Sales Kit User Guide'}</span></button><button className="role-lang-toggle" onClick={toggle} aria-label={lang === 'vi' ? 'Chuyển sang tiếng Anh' : 'Switch to Vietnamese'} title="VI / EN"><span className={lang === 'vi' ? 'on' : ''}>VI</span><i /><span className={lang === 'en' ? 'on' : ''}>EN</span></button></div></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1 style={{ color: '#ED6203' }}>DEMO KIT</h1><p className="role-intro">{lang === 'vi' ? 'Tìm kiếm hoặc lọc theo vai trò để chọn một flow, rồi chạy nó như một hướng dẫn trực quan với dữ liệu mẫu thực tế.' : 'Search or filter by role to find a flow, then run it as a guided walkthrough with realistic sample data.'}</p><p className="desktop-hint">💻 {lang === 'vi' ? 'Để có trải nghiệm tốt nhất, hãy khám phá trên trình duyệt máy tính.' : 'For the best experience, explore the journey on a desktop browser.'}</p>
-      <div className="rs-controls" data-no-i18n>
-        <label className="rs-search">
-          <span className="rs-search-icon" aria-hidden="true">⌕</span>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={lang === 'vi' ? 'Tìm flow theo tên hoặc mô tả…' : 'Search flows by name or description…'} aria-label={lang === 'vi' ? 'Tìm flow' : 'Search flows'} />
-          {query && <button type="button" className="rs-search-clear" onClick={() => setQuery('')} aria-label={lang === 'vi' ? 'Xóa tìm kiếm' : 'Clear search'}>✕</button>}
-        </label>
-        <div className="rs-filter" role="group" aria-label={lang === 'vi' ? 'Lọc theo vai trò' : 'Filter by role'}>
-          {['All', ...roleDefs.map((r) => r.role)].map((role) => (
-            <button key={role} type="button" className={`rs-chip ${roleFilter === role ? 'active' : ''}`} style={role === 'All' ? undefined : ({ '--accent': ROLE_ACCENT[role] } as CSSProperties)} onClick={() => setRoleFilter(role)} aria-pressed={roleFilter === role}>
-              {role === 'All' ? (lang === 'vi' ? 'Tất cả' : 'All') : role}<i>{roleCount(role)}</i>
-            </button>
-          ))}
-        </div>
-      </div>
-      {totalMatches === 0 ? (
-        <div className="rs-empty">
-          <span aria-hidden="true">🔍</span>
-          <p>{lang === 'vi' ? 'Không tìm thấy flow phù hợp.' : 'No flows match your search.'}</p>
-          <button type="button" onClick={() => { setQuery(''); setRoleFilter('All') }}>{lang === 'vi' ? 'Xóa bộ lọc' : 'Clear filters'}</button>
-        </div>
-      ) : (
-        <div className="rs-roles">{roleDefs.filter((r) => roleFilter === 'All' || r.role === roleFilter).map((item) => {
-          const accent = ROLE_ACCENT[item.role]
-          const flows = item.flows.map((flow, i) => ({ flow, n: i + 1 })).filter(({ flow }) => matchFlow(flow))
-          if (flows.length === 0) return null
-          return <section key={item.role} className="rs-role-section">
-            <header className="rs-role-header">
-              <span className="rs-role-icon" style={{ background: accent }}>{item.icon}</span>
-              <div><h2>{item.role}<i className="rs-role-count">{flows.length}</i></h2><p>{item.description}</p></div>
-            </header>
-            <div className="rs-flow-grid">{flows.map(({ flow, n }) => (
-              <button key={flow.id} className="rs-flow-card" style={{ '--accent': accent } as CSSProperties} onClick={() => onSelect(`/demo-journey/${flow.id}`)}>
-                <span className="rs-flow-top"><span className="rs-flow-badge">{item.role}</span><span className="rs-flow-num">{String(n).padStart(2, '0')}</span></span>
-                <strong>{lang === 'en' ? flow.nameEn : flow.nameVi}</strong>
-                <small>{lang === 'en' ? flow.descEn : flow.descVi}</small>
-                <span className="rs-flow-run">{lang === 'vi' ? 'Chạy' : 'Run'} ▸</span>
-              </button>
-            ))}</div>
-          </section>
-        })}</div>
-      )}</main>
+  return <div className="role-selection-page"><header className="role-topbar"><button className="role-brand logo-button"><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /><small>Demo Kit</small></button><div className="role-topbar-actions" data-no-i18n><button className="role-guide-btn" onClick={() => setGuideOpen(true)}><span className="role-guide-btn-icon" aria-hidden="true">i</span><span>{lang === 'vi' ? 'Hướng dẫn sử dụng Demo Kit' : 'Demo Kit User Guide'}</span></button><button className="role-lang-toggle" onClick={toggle} aria-label={lang === 'vi' ? 'Chuyển sang tiếng Anh' : 'Switch to Vietnamese'} title="VI / EN"><span className={lang === 'vi' ? 'on' : ''}>VI</span><i /><span className={lang === 'en' ? 'on' : ''}>EN</span></button></div></header><main className="role-content"><p className="role-eyebrow">Product demo environment</p><h1 style={{ color: '#ED6203' }}>DEMO KIT</h1><p className="role-intro">{lang === 'vi' ? 'Chọn một vai trò để xem quy trình hướng dẫn, rồi chạy bất kỳ bước nào như một hướng dẫn trực quan với dữ liệu mẫu thực tế.' : 'Select a role to see its guided workflow, then run any step as a walkthrough with realistic sample data.'}</p><p className="desktop-hint">💻 {lang === 'vi' ? 'Để có trải nghiệm tốt nhất, hãy khám phá trên trình duyệt máy tính.' : 'For the best experience, explore the journey on a desktop browser.'}</p>
+<section className="role-grid">{roleDefs.map((item) => <article key={item.role} className="role-card"><button className="role-card-main" onClick={() => onSelect(`/workflow/${item.role}`)}><span className="role-icon">{item.icon}</span><h2>{item.role}</h2><p>{item.description}</p><span className="role-card-cta" data-no-i18n>{item.flows.length} {lang === 'vi' ? 'flow' : (item.flows.length === 1 ? 'flow' : 'flows')} ▸</span></button></article>)}</section>
+      <div className="explore-self">
+        <button className="explore-self-btn" onClick={() => onSelect('/partner/dashboard')}>{lang === 'vi' ? 'Tự khám phá' : 'Explore by yourself'} →</button>
+      </div></main>
     {guideOpen && <div className="guide-overlay" onClick={() => setGuideOpen(false)}>
       <div className="guide-card" onClick={(e) => e.stopPropagation()}>
         <button className="guide-close" onClick={() => setGuideOpen(false)} aria-label={lang === 'vi' ? 'Đóng' : 'Close'}>✕</button>
