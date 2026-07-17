@@ -39,6 +39,7 @@ export type RoleFlow = {
 
 const ENTERPRISES = '/partner/site/enterprises'
 const INVITATIONS = '/partner/site/invitations'
+const SITE_SETTING = '/partner/site/setting'
 
 // Built Partner Portal concept-flow pages (see the components in App.tsx). Each step's
 // `focus` matches an English aria-label on that page so the guided glow lands in both
@@ -51,6 +52,7 @@ const P_FINANCE = '/partner/financial-reports'
 const P_RFQ = '/partner/rfq-dealroom'
 const P_POST_EXPO = '/partner/post-expo'
 const P_JOURNEY = '/partner/journey'
+const P_OPERATIONS = '/partner/operation/live'
 
 type FlowDef = Omit<RoleFlow, 'steps'> & { screenSteps?: DemoJourneyStep[] }
 
@@ -168,16 +170,11 @@ const partnerFlows: RoleFlow[] = [
         scriptEn: 'The Partner updates the logo, partner name, banner, imagery and short description. The whole portal re-skins to their brand.' },
       { en: 'Publish the tenant homepage', vi: 'Xuất bản homepage tenant',
         // Backed by the built Partner Portal dashboard: reaching this step switches the
-        // preview from the concept card into the real portal, and "Open ▸" pops the live
-        // public site in a parallel tab.
+        // preview from the concept card into the real portal. (The live public site now
+        // opens from Site Setting → "Preview Your Site", not from here.)
         builtPath: '/partner/dashboard',
         script: 'Homepage của tenant lên sóng ngay. Đây là Partner Portal thật — bảng điều khiển vận hành mà Partner nhìn thấy sau khi đăng nhập.',
-        scriptEn: 'The tenant homepage goes live immediately. This is the real Partner Portal — the operations dashboard the Partner sees after signing in. And this is not a mock-up: in a parallel tab, open the live public portal of the Tay Bac Sai Gon business association, running on Arobid right now.',
-        link: {
-          url: 'https://arobid.com/partner/en/hdn-taybacsaigon',
-          labelEn: 'Open the live Partner portal',
-          labelVi: 'Mở portal Partner thực tế',
-        } },
+        scriptEn: 'The tenant homepage goes live immediately. This is the real Partner Portal — the operations dashboard the Partner sees after signing in.' },
     ],
   }),
   makeFlow({
@@ -231,6 +228,26 @@ const partnerFlows: RoleFlow[] = [
     ],
   }),
   makeFlow({
+    id: 'partner-site-management', actor: 'Partner',
+    nameVi: 'Quản lý Partner Site', nameEn: 'Partner Site Management',
+    descVi: 'Cài đặt Site: gắn logo, tên, tagline, banner homepage, màu thương hiệu và tên miền — cổng thương hiệu của Partner lên sóng đúng nhận diện.',
+    descEn: 'Site Setting: set the logo, name, tagline, homepage banner, theme colour and domain — the Partner\'s branded site goes live on brand.',
+    screenSteps: [
+      { actor: 'Partner', action: 'Nhận diện Site', screen: 'Site Setting', path: SITE_SETTING, focus: 'Site name',
+        script: 'Cài đặt Site cho phép Partner gắn logo, tên site, tagline và mô tả ngắn — toàn bộ portal đổi theo thương hiệu của Partner.',
+        scriptEn: "Site Setting lets the Partner set the logo, site name, tagline and short description — the whole portal re-skins to the Partner's brand." },
+      { actor: 'Partner', action: 'Banner homepage', screen: 'Site Setting', path: SITE_SETTING, focus: 'Homepage banner',
+        script: 'Partner tải lên banner cho homepage — hình ảnh đầu tiên visitor thấy khi vào cổng của tenant.',
+        scriptEn: 'The Partner uploads the homepage banner — the first image visitors see when they land on the tenant portal.' },
+      { actor: 'Partner', action: 'Thương hiệu & tên miền', screen: 'Site Setting', path: SITE_SETTING, focus: 'Custom domain',
+        script: 'Partner đặt màu thương hiệu, tên miền riêng và email liên hệ, rồi Publish để đưa site lên sóng đúng nhận diện.',
+        scriptEn: 'The Partner sets the theme colour, a custom domain and a contact email, then hits Publish to take the site live on brand.' },
+      { actor: 'Partner', action: 'Xem trước Site', screen: 'Site Setting', path: SITE_SETTING, cta: 'Preview Your Site',
+        script: 'Partner bấm Preview Your Site để mở cổng thương hiệu thật của tenant trong một tab mới — đây là site đang chạy thật trên Arobid, không phải bản mô phỏng.',
+        scriptEn: "The Partner clicks Preview Your Site to open the tenant's real branded portal in a new tab — the live site running on Arobid right now, not a mock-up." },
+    ],
+  }),
+  makeFlow({
     id: 'partner-expo-setup', actor: 'Partner',
     nameVi: 'Thiết lập Digital Expo', nameEn: 'Digital Expo Setup',
     descVi: 'Partner mở Expo Admin vừa tạo, kiểm tra thông tin, xem trước template 3D rồi submit để đưa vào vận hành.',
@@ -275,16 +292,16 @@ const partnerFlows: RoleFlow[] = [
   makeFlow({
     id: 'partner-expo-operations', actor: 'Partner',
     nameVi: 'Bảng điều hành Expo', nameEn: 'Expo Operations',
-    descVi: 'Trung tâm vận hành của một Expo: tỉ lệ lấp đầy booth, lưu lượng visitor và mọi việc Partner có thể theo dõi hay xử lý.',
-    descEn: 'Workspace → Manage Expo → view everything related to an Expo the Partner can do or see.',
-    screenSteps: journeySegments.partnerOperation,
-    stages: [
-      { en: 'Booth occupancy', vi: 'Tỉ lệ lấp đầy booth',
-        script: 'Partner theo dõi tỉ lệ lấp đầy booth theo từng hạng Basic, Professional và Premium để biết còn bao nhiêu slot cần bán.',
-        scriptEn: 'The Partner tracks booth occupancy across the Basic, Professional and Premium tiers to see how many slots are left to sell.' },
-      { en: 'Live visitor traffic', vi: 'Lưu lượng visitor',
-        script: 'Trong lúc Expo đang chạy, Partner thấy lưu lượng visitor theo thời gian thực và booth nào đang thu hút nhiều nhất.',
-        scriptEn: 'While the Expo runs, the Partner sees live visitor traffic and which booths are drawing the most attention.' },
+    descVi: 'Trung tâm vận hành của một Expo đang chạy: tỉ lệ lấp đầy booth, lưu lượng visitor thời gian thực và mọi việc Partner có thể theo dõi hay xử lý.',
+    descEn: 'Workspace → Manage Expo → the live operations centre of a running Expo.',
+    screenSteps: [
+      ...journeySegments.partnerOperation,
+      { actor: 'Partner', action: 'Tỉ lệ lấp đầy booth', screen: 'Expo Operations', path: P_OPERATIONS, focus: 'Booth occupancy',
+        script: 'Khi Expo đang Live, bảng điều hành cho Partner theo dõi tỉ lệ lấp đầy booth theo từng hạng Basic, Professional và Premium — biết còn bao nhiêu slot cần bán.',
+        scriptEn: 'While the Expo is Live, the operations board lets the Partner track booth occupancy across the Basic, Professional and Premium tiers — how many slots are left to sell.' },
+      { actor: 'Partner', action: 'Lưu lượng visitor', screen: 'Expo Operations', path: P_OPERATIONS, focus: 'Live visitor traffic',
+        script: 'Partner thấy lưu lượng visitor theo thời gian thực — bao nhiêu người đang online và booth nào đang thu hút nhiều nhất ngay lúc này.',
+        scriptEn: 'The Partner sees live visitor traffic in real time — how many people are online and which booths are drawing the most attention right now.' },
     ],
   }),
   makeFlow({
@@ -304,12 +321,15 @@ const partnerFlows: RoleFlow[] = [
   makeFlow({
     id: 'partner-financial-reports', actor: 'Partner',
     nameVi: 'Báo cáo tài chính', nameEn: 'Financial Reports',
-    descVi: 'Doanh thu từng Expo — tiền booth, gói tài trợ, dịch vụ cộng thêm — cùng bảng đối soát phần Arobid giữ và phần Partner nhận.',
+    descVi: 'Báo cáo tổng theo loại doanh thu — booth Expo, tài trợ — kèm chi tiết hoa hồng từng Expo và bảng đối soát phần Partner nhận.',
     descEn: 'Workspace → Financial Reports section → view reports.',
     screenSteps: [
-      { actor: 'Partner', action: 'Doanh thu theo Expo', screen: 'Financial Reports', path: P_FINANCE, focus: 'Revenue by Expo',
-        script: 'Partner xem doanh thu từng Expo: tiền booth, gói tài trợ và dịch vụ cộng thêm.',
-        scriptEn: 'The Partner sees revenue per Expo: booth sales, sponsorship packages and add-on services.' },
+      { actor: 'Partner', action: 'Báo cáo doanh thu tổng', screen: 'Financial Reports', path: P_FINANCE, focus: 'General report',
+        script: 'Partner xem báo cáo tổng: từng loại doanh thu — booth Expo, gói tài trợ — với tổng doanh thu và phần doanh thu Partner nhận.',
+        scriptEn: 'The Partner sees the general report: each revenue type — Expo booths, sponsorships — with total revenue and the Partner\'s share.' },
+      { actor: 'Partner', action: 'Chi tiết theo Expo', screen: 'Financial Reports', path: P_FINANCE, focus: 'Revenue by Expo',
+        script: 'Lọc theo tên Expo để xem tên và thời gian diễn ra, cùng bảng chi tiết như báo cáo tổng kèm thêm cột tỉ lệ — doanh thu Partner bằng tổng nhân tỉ lệ, phần còn lại thuộc Arobid.',
+        scriptEn: 'Filtering by Expo shows its name and dates, plus the same table as the general report with an extra rate column — Partner revenue is total × rate, the remainder goes to Arobid.' },
       { actor: 'Partner', action: 'Đối soát & thanh toán', screen: 'Financial Reports', path: P_FINANCE, focus: 'Settlement and payouts',
         script: 'Bảng đối soát thể hiện phần Arobid giữ lại và phần Partner nhận về, theo từng kỳ thanh toán.',
         scriptEn: 'The settlement view shows what Arobid retains and what the Partner receives, per payout period.' },
@@ -392,6 +412,7 @@ const exhibitorFlows: RoleFlow[] = [
     descEn: 'Book the Expo → choose booth type → pay → pick the 3D booth template → choose the products to show → set theme colour + add video & banner → view it on the Expo.',
     screenSteps: [
       ...journeySegments.exhibitorBooking,
+      ...journeySegments.exhibitorAiOnboarding,
       ...journeySegments.exhibitorAccount,
       ...journeySegments.exhibitorBooth,
     ],
@@ -478,5 +499,39 @@ export const roleDefs: RoleDef[] = [
 const flowsById = new Map(roleDefs.flatMap((role) => role.flows.map((flow) => [flow.id, flow] as const)))
 
 export const findFlow = (id: string): RoleFlow | undefined => flowsById.get(id)
+
+// Each role's flows grouped into meaningful lifecycle stages, in the order a
+// Partner (or other actor) actually moves through them on Arobid. Used by the
+// role workflow page: click a role → see its flows laid out as a staged pipeline.
+export type WorkflowStage = { en: string; vi: string; hintEn: string; hintVi: string; flowIds: string[] }
+
+export const roleWorkflows: Record<string, WorkflowStage[]> = {
+  Admin: [
+    { en: 'Create Expos', vi: 'Tạo Expo', hintEn: 'Build and configure an Expo for a Partner', hintVi: 'Dựng và cấu hình Expo cho Partner', flowIds: ['admin-create-expo'] },
+    { en: 'Govern Participation', vi: 'Duyệt & điều phối', hintEn: 'Approve Expos and assign tenant permissions', hintVi: 'Duyệt Expo và phân quyền tenant', flowIds: ['admin-govern'] },
+    { en: 'Monitor Performance', vi: 'Giám sát', hintEn: 'Track platform-wide health and revenue', hintVi: 'Theo dõi sức khỏe và doanh thu nền tảng', flowIds: ['admin-monitor'] },
+  ],
+  Partner: [
+    { en: 'Onboard & Understand', vi: 'Làm quen & Khởi tạo', hintEn: 'Learn the ecosystem and get a branded Portal', hintVi: 'Hiểu hệ sinh thái và nhận Portal có thương hiệu',
+      flowIds: ['partner-journey-map', 'partner-ecosystem', 'partner-portal-init'] },
+    { en: 'Grow the Member Base', vi: 'Phát triển thành viên', hintEn: 'Invite and manage businesses on the tenant', hintVi: 'Mời và quản lý doanh nghiệp trên hạ tầng',
+      flowIds: ['partner-business-invite', 'partner-member-dashboard', 'partner-site-management'] },
+    { en: 'Build & Launch Expos', vi: 'Dựng & Khởi chạy Expo', hintEn: 'Set up Expos, invite participants, run events and sponsors', hintVi: 'Thiết lập Expo, mời tham gia, sự kiện và tài trợ',
+      flowIds: ['partner-expo-setup', 'partner-expo-invite', 'partner-event-management', 'partner-sponsor-management'] },
+    { en: 'Operate Live', vi: 'Vận hành trực tiếp', hintEn: "Track and run Expos while they're live", hintVi: 'Theo dõi và điều hành Expo đang chạy',
+      flowIds: ['partner-expo-operations', 'partner-expo-dashboard', 'partner-aro-ai'] },
+    { en: 'Monetise & Report', vi: 'Doanh thu & Báo cáo', hintEn: 'Settle revenue, track RFQs and post-Expo results', hintVi: 'Đối soát doanh thu, RFQ và tổng kết sau Expo',
+      flowIds: ['partner-financial-reports', 'partner-rfq-dealroom', 'partner-post-expo'] },
+  ],
+  Exhibitor: [
+    { en: 'Onboard', vi: 'Tạo hồ sơ', hintEn: 'Build the business profile with AI', hintVi: 'Dựng hồ sơ doanh nghiệp bằng AI', flowIds: ['exhibitor-ai-onboarding'] },
+    { en: 'Set up the Booth', vi: 'Dựng gian hàng', hintEn: 'Book, pay and build the 3D booth in an Expo', hintVi: 'Đặt chỗ, thanh toán và dựng booth 3D trong Expo', flowIds: ['exhibitor-expo-setup'] },
+    { en: 'Win Business', vi: 'Chốt đơn', hintEn: 'Receive RFQs and send quotations', hintVi: 'Nhận RFQ và gửi báo giá', flowIds: ['exhibitor-rfq-quote'] },
+  ],
+  Visitor: [
+    { en: 'Discover at the Expo', vi: 'Khám phá tại Expo', hintEn: 'Explore the 3D Expo and send RFQs', hintVi: 'Dạo Expo 3D và gửi RFQ', flowIds: ['visitor-expo-discovery'] },
+    { en: 'Source Year-Round', vi: 'Tìm nguồn quanh năm', hintEn: 'Search the marketplace and manage RFQs', hintVi: 'Tìm trên marketplace và quản lý RFQ', flowIds: ['visitor-buyer-sourcing'] },
+  ],
+}
 
 export const fullJourney = demoScriptSteps
