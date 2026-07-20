@@ -576,7 +576,10 @@ function ExpoHallTemplate({ name, type, selected }: { name: string; type: 'stand
 // Sidebar items with a built screen route there; everything else lands on the
 // shared "coming soon" page so no nav entry is a dead end.
 const PARTNER_NAV_ROUTES: Record<string, string> = {
-  Overview: '/partner/journey',
+  // Overview opens the Partner Analytics dashboard. The "Partner Journey on Arobid"
+  // page (/partner/journey) is a demo-flow-only screen, so it is intentionally NOT a
+  // portal nav destination.
+  Overview: '/partner/dashboard',
   'Deal Room': '/partner/deal-room',
   Dashboard: '/partner/expo-dashboard',
   'Event Management': '/partner/events',
@@ -598,15 +601,16 @@ function PartnerSidebar({ onLogoClick, onExpoConfig, onExpoOperation, onSiteNav,
   const bundleItems = ['Bundle Creation', 'Bundle Pricing']
   // Navigate from the sidebar itself: pushState + a synthetic popstate so the App
   // root (which owns `pathname` state) re-renders — the sidebar has no `navigate`.
-  // When the sidebar is shown INSIDE the demo-journey iframe, drive the TOP window
-  // instead of the iframe, so the address bar reflects the page you land on (each
-  // tab gets its own real, reload-safe URL) rather than staying on the demo URL.
+  // Always navigate the window the sidebar actually lives in. Inside the demo-journey
+  // iframe that means the iframe navigates in place, so the guided journey's script
+  // dock stays put (the parent's off-path banner then offers to resync) instead of
+  // the top window leaving `/demo-journey` and unmounting the whole demo. In
+  // "Explore by yourself" the sidebar isn't in an iframe, so this navigates the top
+  // window exactly as before — each tab still gets its own real, reload-safe URL.
   const goNav = (item: string) => {
     const path = PARTNER_NAV_ROUTES[item] ?? `/partner/coming-soon/${encodeURIComponent(item)}`
-    let w: Window = window
-    try { if (window.top && window.top !== window.self) w = window.top } catch { /* cross-origin: navigate locally */ }
-    w.history.pushState({}, '', path)
-    w.dispatchEvent(new PopStateEvent('popstate'))
+    window.history.pushState({}, '', path)
+    window.dispatchEvent(new PopStateEvent('popstate'))
   }
   return <aside className="partner-sidebar"><button className="partner-brand logo-button" onClick={onLogoClick}><img className="arobid-logo" src="/arobid-logo-white.svg" alt="arobid.com" /></button><div className="portal-label">Partner Portal</div><nav className="partner-nav"><button className={`partner-nav-item ${overviewActive || activeNav === 'Overview' ? 'active' : ''}`} onClick={() => goNav('Overview')}><span>▦</span>Overview</button><button className={`partner-nav-item ${activeNav === 'Deal Room' ? 'active' : ''}`} onClick={() => goNav('Deal Room')}><span>◌</span>Deal Room</button><PartnerNavGroup icon="♧" label="Partner Site Management" items={['Site Setting', 'Enterprises Management', 'Invitations']} activeItem={siteActiveItem ?? groupActive(['Site Setting', 'Enterprises Management', 'Invitations'])} onSelect={goNav} /><PartnerNavGroup icon="◉" label="Expo Programs" items={expoItems} activeItem={suppressDefault ? groupActive(expoItems) : 'Expo Settings'} onSelect={goNav} /><PartnerNavGroup icon="▤" label="Bundle Management" items={bundleItems} activeItem={groupActive(bundleItems)} onSelect={goNav} /><PartnerNavGroup icon="⊞" label="Data Center" items={dataItems} activeItem={groupActive(dataItems)} onSelect={goNav} /><button className={`partner-nav-item ${activeNav === 'TradeCredit Wallet' ? 'active' : ''}`} onClick={() => goNav('TradeCredit Wallet')}><span>▢</span>TradeCredit Wallet</button></nav><div className="partner-profile-wrap"><button className="partner-profile" onClick={() => setRoleOpen(!roleOpen)} aria-expanded={roleOpen}><span>Logo</span><div><strong>Tenant Partner Admin</strong><small>{furnitureExpoMock.ownerEmail}</small></div><b>›</b></button>{roleOpen && <div className="partner-role-menu profile-role-menu"><button onClick={onExpoConfig}><strong>Expo Config</strong><small>Configure expo setup and draft content</small></button><button onClick={onExpoOperation}><strong>Expo Operation</strong><small>Operate approved and upcoming expos</small></button></div>}</div></aside>
 }
@@ -2846,11 +2850,39 @@ function DemoJourney({ flow, onExit, initialStep = 0 }: { flow?: RoleFlow; onExi
   // remount when the same src must be reloaded from scratch. Steps that stay on the
   // page the iframe is ALREADY showing never reload it (see the sync effect below).
   const [frame, setFrame] = useState(() => ({ nonce: 0, src: steps[startIndex].path }))
+  // The path the cloned screen is ACTUALLY on. The user can now click freely inside
+  // the iframe (real functions), so they may navigate away from the scripted screen.
+  // We poll the iframe's location (see effect below) to know when that happens.
+  const [framePath, setFramePath] = useState(steps[startIndex].path)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const step = steps[index]
   const { lang, toggle: toggleLang } = useLanguage()
   const activeScript = lang === 'en' ? (step.scriptEn ?? step.script) : step.script
   const typingDone = typed.length >= activeScript.length
+  // The cloned screen goes live for the whole narration (script phase) and the
+  // post-CTA action phase: the veil turns click-through and the iframe becomes
+  // interactive, so every control behaves exactly like the real app — the same
+  // functions available in "Explore by yourself". Only the brief highlight reveal
+  // keeps it locked so the guided glow/scroll can play first.
+  const screenLive = phase === 'script' || phase === 'action'
+
+  // Has the user clicked off the scripted screen? Compare the iframe's real path
+  // with the step's path (trailing slashes normalised). Only meaningful once the
+  // screen is live — during the highlight reveal the poll may still be catching up.
+  const normPath = (p: string) => p.replace(/\/+$/, '') || '/'
+  const offScript = screenLive && normPath(framePath) !== normPath(step.path)
+  // If the screen they wandered to IS itself a step of this flow, we can move the
+  // script straight to it (pick the match nearest the current step). Otherwise the
+  // only way back on-script is to return to the current step.
+  const matchedStep = (() => {
+    if (!offScript) return -1
+    const hits = steps
+      .map((s, i) => ({ i, ok: normPath(s.path) === normPath(framePath) }))
+      .filter((m) => m.ok)
+    if (!hits.length) return -1
+    hits.sort((a, b) => Math.abs(a.i - index) - Math.abs(b.i - index))
+    return hits[0].i
+  })()
 
   // Find the real clickable control named by some text (a button/tab/card label).
   // We pick the SMALLEST clickable element whose text (or aria-label) contains the
@@ -3085,6 +3117,21 @@ function DemoJourney({ flow, onExit, initialStep = 0 }: { flow?: RoleFlow; onExi
     setFrame((f) => (f.src === step.path ? f : { nonce: f.nonce + 1, src: step.path }))
   }, [index, runKey])
 
+  // Track where the cloned screen actually is. The embedded app navigates itself
+  // with pushState (no popstate on its own clicks), so there's no event to listen
+  // for — poll the iframe's location instead. Cheap, and only needs to be roughly
+  // live so the "off the guided path" banner can appear/disappear. Wrapped in
+  // try/catch for the brief cross-realm window while a fresh screen is loading.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      try {
+        const p = iframeRef.current?.contentWindow?.location.pathname
+        if (p) setFramePath((prev) => (prev === p ? prev : p))
+      } catch { /* iframe mid-load — try again next tick */ }
+    }, 350)
+    return () => window.clearInterval(id)
+  }, [])
+
   // When the script dock slides open it shortens the iframe (on mobile the dock
   // is a fixed bottom section that the screen shrinks to make room for). That
   // can push the highlighted component below the new, shorter viewport, so
@@ -3221,12 +3268,13 @@ function DemoJourney({ flow, onExit, initialStep = 0 }: { flow?: RoleFlow; onExi
         <button className="gtour-exit" onClick={onExit}>Exit ✕</button>
       </div>
 
-      <div className="gtour-screen">
+      <div className={`gtour-screen${screenLive ? ' interactive' : ''}`}>
         <iframe ref={iframeRef} key={frame.nonce} title={step.screen} src={frame.src} onLoad={() => window.setTimeout(paintHighlights, 220)} />
-        {/* The veil dims/captures the screen during the reveal. Once the script
-            has fully typed (or in the action phase) it becomes click-through so
-            the user can scroll and read the page underneath. */}
-        <div className={`gtour-veil ${phase}${(phase === 'script' && typingDone) || phase === 'action' ? ' through' : ''}`} onClick={phase === 'highlight' ? advance : undefined} />
+        {/* The veil captures the screen during the highlight reveal. As soon as the
+            narration starts (script phase) or the action phase begins it becomes
+            click-through AND the screen below goes live (`.interactive`), so the
+            user can freely scroll and click the real screen. */}
+        <div className={`gtour-veil ${phase}${screenLive ? ' through' : ''}`} onClick={phase === 'highlight' ? advance : undefined} />
       </div>
 
       <div className={`gtour-dock ${phase} ${phase === 'script' || phase === 'action' ? 'open' : ''} ${dockHidden ? 'hidden' : ''}`}>
@@ -3238,6 +3286,17 @@ function DemoJourney({ flow, onExit, initialStep = 0 }: { flow?: RoleFlow; onExi
           <p className="gtour-line" onClick={() => setTyped(activeScript)}>
             {phase === 'action' ? activeScript : typed}{phase === 'script' && !typingDone && <i className="gtour-caret" />}
           </p>
+          {/* The user has clicked into a screen that isn't the scripted one. Keep the
+              script box in place and offer one button to get back on script: jump the
+              script to the screen they're on if it maps to a flow step, otherwise
+              return them to the current step. */}
+          {offScript && <div className="gtour-offscript">
+            <span className="gtour-offscript-icon" aria-hidden="true" data-no-i18n>⤺</span>
+            <span className="gtour-offscript-text">{lang === 'en' ? "You've explored off the guided path." : 'Bạn đang xem ngoài kịch bản hướng dẫn.'}</span>
+            {matchedStep >= 0
+              ? <button className="gtour-offscript-btn" onClick={() => goTo(matchedStep)}>{lang === 'en' ? `Sync script to this screen · Step ${matchedStep + 1}` : `Đồng bộ kịch bản với màn hình này · Bước ${matchedStep + 1}`} ▸</button>
+              : <button className="gtour-offscript-btn" onClick={replay}>{lang === 'en' ? `Back to Step ${index + 1}` : `Quay lại Bước ${index + 1}`} ↩</button>}
+          </div>}
           <div className="gtour-controls">
             <button className="back" onClick={back} disabled={index === 0}>◂ Back</button>
             <button className="replay" onClick={replay}>⟳ Replay</button>
