@@ -918,11 +918,15 @@ body:has(.partner-app) .lang-fab { display: none; }
 
 /* Stage: the real built screen inside an iframe (untouched) */
 .gtour-screen { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #fff; }
-/* The demo screen is display-only: the user drives the flow from the script dock,
-   never by clicking inside the cloned screen. pointer-events:none makes every
-   component in it unclickable; the demo player's own programmatic .click() calls
-   (Open ▸ / prep steps) still work, since those don't rely on pointer events. */
+/* During the guided reveal the cloned screen is display-only: the veil on top
+   catches clicks to advance, and the iframe is pointer-events:none so stray
+   clicks can't fall through. The demo player's own programmatic .click() calls
+   (Open ▸ / prep steps) still work, since those don't rely on pointer events.
+   Once the narration finishes (`.interactive`, in sync with the veil going
+   `.through`) the iframe goes live so the user can freely scroll and click the
+   real screen — exactly the current product functions. */
 .gtour-screen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; pointer-events: none; }
+.gtour-screen.interactive iframe { pointer-events: auto; }
 
 /* Veil also shields the iframe from clicks and drives click-to-advance */
 .gtour-veil { position: absolute; inset: 0; z-index: 2; background: rgba(7,18,32,0); cursor: pointer; transition: background .45s ease; }
@@ -958,6 +962,14 @@ body:has(.partner-app) .lang-fab { display: none; }
 .gtour-speaker small { color: #cdd9f5; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gtour-line { margin: 0; max-height: 4.8em; overflow-y: auto; color: #eef4ff; font-size: 14.5px; line-height: 1.55; cursor: text; text-shadow: 0 1px 10px rgba(2,6,23,.55); }
 .gtour-caret { display: inline-block; width: 8px; height: 15px; margin-left: 1px; vertical-align: -2px; background: #ff7a1a; border-radius: 2px; animation: gtourBlink 1s step-end infinite; }
+/* "You've gone off the guided path" banner — shown inside the dock when the user
+   clicks into a screen that isn't the scripted one. */
+.gtour-offscript { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-top: 10px; padding: 9px 12px; background: rgba(255,145,60,.14); border: 1px solid rgba(255,145,60,.4); border-radius: 12px; }
+.gtour-offscript-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: 0 0 auto; color: #ffb27c; font-size: 15px; }
+.gtour-offscript-text { flex: 1 1 auto; min-width: 140px; color: #ffe4cf; font-size: 12.5px; line-height: 1.4; }
+.gtour-offscript-btn { flex: 0 0 auto; height: 32px; padding: 0 14px; color: #07184e; background: linear-gradient(180deg, #ffc48a, #ff9e52); border: 0; border-radius: 999px; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: transform .14s ease, filter .14s ease; }
+.gtour-offscript-btn:hover { transform: translateY(-1px); filter: saturate(1.06); }
+
 .gtour-controls { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .gtour-controls button { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; transition: transform .14s ease, filter .14s ease, background .14s ease; }
 .gtour-controls button:hover:not(:disabled) { transform: translateY(-1px); }
@@ -982,38 +994,53 @@ body:has(.partner-app) .lang-fab { display: none; }
      screen above shrinks to fit and scrolls on its own, while the script
      box scrolls internally when the line is long. */
   .gtour-dock {
-    position: static;
+    position: relative;      /* containing block + stacking context for the floating toggle */
     left: auto;
     bottom: auto;
     width: 100%;
     max-width: 100%;
     flex: 0 0 auto;
-    max-height: 0;
-    overflow: hidden;
+    overflow: visible;       /* let the toggle float above the card without being clipped */
     transform: none;
     opacity: 1;
     pointer-events: none;
-    transition: max-height .4s cubic-bezier(.2,.85,.25,1);
   }
-  .gtour-dock.open {
-    max-height: 48vh;
-    transform: none;
-    pointer-events: auto;
-  }
+  .gtour-dock.open { pointer-events: auto; transform: none; }
+  /* The open/close animation lives on the CARD, not the dock. That frees the
+     toggle (a sibling positioned below) to float ABOVE the card, over the live
+     screen, instead of sitting in a dark row. */
   .gtour-dock-card {
     display: flex;
     flex-direction: column;
-    max-height: 48vh;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 16px;
     border-radius: 18px 18px 0 0;
     border-bottom: 0;
     background: #0a1634;
     box-shadow: 0 -10px 30px rgba(2,6,23,.4);
+    transition: max-height .4s cubic-bezier(.2,.85,.25,1), padding .4s ease;
   }
-  /* Hidden state on mobile: collapse the card but keep the dock tall enough to
-     show the Show-script toggle so the user can bring the panel back. */
-  .gtour-dock.hidden.open { max-height: 52px; }
-  .gtour-dock-toggle { margin: 0 auto 6px; }
+  .gtour-dock.open .gtour-dock-card {
+    max-height: 48vh;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Hidden state: collapse the card, but the toggle below stays visible so the
+     user can bring the panel back. */
+  .gtour-dock.hidden.open .gtour-dock-card { max-height: 0; padding: 0 16px; }
+  /* The toggle is a light "handle" pill floating just above the card, over the
+     live screen — never framed by the dark card or the dark stage. Anchored to
+     the dock's top edge (bottom:100%), so it rides down as the panel collapses. */
+  .gtour-dock-toggle {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%);
+    margin: 0 0 8px;
+    z-index: 2;
+  }
+  /* Only show the toggle once the panel is in play (script / action phase). */
+  .gtour-dock:not(.open) .gtour-dock-toggle { display: none; }
   .gtour-speaker { flex: 0 0 auto; }
   .gtour-line {
     flex: 1 1 auto;
