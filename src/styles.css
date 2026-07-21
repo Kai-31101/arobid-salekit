@@ -1605,3 +1605,45 @@ button.partner-nav-item:hover { color: #ffc48a; }
   .rfq-card { flex-wrap: wrap; }
   .rfq-card-side { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; text-align: left; }
 }
+
+/* ---- Arobid mascot (bottom-right) ---------------------------------------
+   The character is a set of pre-rendered 3D views (front / side / back), so
+   the turn is a weighted crossfade between them rather than CSS geometry:
+   front holds most of the cycle, then it rotates front -> side -> back ->
+   side(mirrored) -> front. Each view is sized from its own crop height in the
+   original 2500px render, so the character keeps one consistent scale as it
+   turns. Decorative art is aria-hidden; the hit pad on top is the real
+   control. */
+.mascot { position: fixed; right: 24px; bottom: 20px; z-index: 40; width: 124px; height: 118px; pointer-events: none; opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease; }
+.mascot.awake { opacity: 1; transform: translateY(0); }
+.mascot-bot { position: absolute; right: 0; bottom: 12px; left: 0; height: 104px; animation: mascotFloat 3.8s ease-in-out infinite; }
+/* The wave is a two-layer cutout of the one front render. In the 320px source
+   the torso ends at x=225 and only the raised arm lives beyond it, so a vertical
+   cut splits them: the body keeps everything up to 76.6% (245px) and the arm
+   layer takes everything past 71.25% (228px). The layers overlap by ~17px, so
+   the body's static arm stub sits behind the pivot and no gap can open as the
+   arm swings. Left/margin positioning keeps `transform` free for the rotation. */
+.mascot-view { position: absolute; bottom: 0; left: 50%; width: 118px; height: 96px; margin-left: -59px; }
+.mascot-body-img { clip-path: inset(0 23.4% 0 0); }
+.mascot-arm-img { clip-path: inset(0 0 0 71.25%); transform-origin: 68% 45%; animation: mascotWave 1.9s ease-in-out infinite; }
+.mascot-shadow { position: absolute; bottom: 0; left: 50%; width: 62px; height: 10px; background: radial-gradient(ellipse at center, rgba(7,24,78,.3), rgba(7,24,78,0) 70%); border-radius: 50%; transform: translateX(-50%); animation: mascotShadow 3.8s ease-in-out infinite; }
+.mascot-hit { position: absolute; top: 4px; right: 8px; bottom: 10px; left: 8px; padding: 0; background: transparent; border: 0; border-radius: 16px; pointer-events: auto; cursor: pointer; }
+.mascot-hit:focus-visible { outline: 2px solid #ff5b00; outline-offset: 3px; }
+/* Bubble clears the mascot entirely: its right edge sits 12px left of the box
+   (right: 100% + 12px), so it never overlaps the character. */
+.mascot-bubble { position: absolute; right: calc(100% + 12px); top: 6px; z-index: 1; width: max-content; max-width: 240px; padding: 9px 13px; margin: 0; color: #fff; background: linear-gradient(135deg, #0a1f63, #07184e); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; box-shadow: 0 14px 34px rgba(7,24,78,.34); font-family: "Inter Tight", Inter, system-ui, sans-serif; font-size: 12.5px; font-weight: 600; line-height: 1.4; opacity: 0; transform: translateX(6px) scale(.94); transform-origin: 100% 50%; transition: opacity .18s ease, transform .18s ease; pointer-events: none; }
+.mascot-bubble::after { content: ''; position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; background: #07184e; border-right: 1px solid rgba(255,255,255,.14); border-bottom: 1px solid rgba(255,255,255,.14); border-radius: 0 0 3px 0; transform: rotate(-45deg); }
+.mascot-hit:hover ~ .mascot-bubble, .mascot-hit:focus-visible ~ .mascot-bubble { opacity: 1; transform: translateX(0) scale(1); }
+@keyframes mascotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes mascotShadow { 0%, 100% { opacity: .85; transform: translateX(-50%) scale(1); } 50% { opacity: .5; transform: translateX(-50%) scale(.8); } }
+@keyframes mascotWave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
+/* The guided journey owns the whole viewport — no mascot drifting over it. */
+body:has(.gtour-stage) .mascot { display: none; }
+@media (max-width: 640px) { .mascot { right: 12px; bottom: 10px; scale: .74; transform-origin: bottom right; } }
+@media (prefers-reduced-motion: reduce) {
+  .mascot { transition: opacity .01ms; }
+  .mascot-bot, .mascot-shadow, .mascot-arm-img { animation: none; }
+  .mascot-arm-img { transform: rotate(0deg); }
+  .mascot-bubble { transform: none; transition: opacity .01ms; }
+  .mascot-hit:hover ~ .mascot-bubble, .mascot-hit:focus-visible ~ .mascot-bubble { transform: none; }
+}
